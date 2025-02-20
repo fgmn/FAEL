@@ -14,8 +14,10 @@ public:
     ros::Time ros_time;
     tf::TransformListener tf_listener_1;
     tf::TransformListener tf_listener_2;
+
     ros::Publisher sensor_odom_pub;
     ros::Publisher base_odom_pub;
+
     ros::Subscriber odom_sub;
 
     ros::Rate rate;
@@ -51,8 +53,9 @@ sensor_odom_to_world::sensor_odom_to_world(const ros::NodeHandle &nh, const ros:
         ROS_WARN("No target_frame specified. Looking for %s. Default is 'base_link'.",
                  (ns + "/target_frame").c_str());
     }
-
+    //订阅传感器原始里程计数据（"sensor/sensor_init/odometry"），当收到消息时调用 odomCallback 回调函数。
     odom_sub = nh_.subscribe("sensor/sensor_init/odometry", 1, &sensor_odom_to_world::odomCallback, this);
+    //同时设置两个发布器，用于发布转换后的里程计数据，分别对应传感器自身和机器人底盘在全局坐标系下的位姿。
     sensor_odom_pub = nh_.advertise<nav_msgs::Odometry>("sensor/world/odometry", 1);
     base_odom_pub = nh_.advertise<nav_msgs::Odometry>("base_link/world/odometry", 1);
 }
@@ -66,6 +69,7 @@ void sensor_odom_to_world::odomCallback(const nav_msgs::OdometryConstPtr &input)
         bool get_1 = false;
         try {
             tf::StampedTransform transform;
+            //获取从全局坐标系到传感器初始坐标系的变换，并存储到 T_W_S0 中。
             tf_listener_1.lookupTransform(world_frame, sensor_init_frame, ros::Time(0), transform);
             T_W_S0.setOrigin(transform.getOrigin());
             T_W_S0.setRotation(transform.getRotation());
@@ -79,6 +83,7 @@ void sensor_odom_to_world::odomCallback(const nav_msgs::OdometryConstPtr &input)
         bool get_2 = false;
         try {
             tf::StampedTransform transform;
+            //获取从目标坐标系（例如 base_link）到传感器当前坐标系的变换，并存储到 T_B_S 中。
             tf_listener_2.lookupTransform(target_frame, sensor_frame, ros::Time(0), transform);
             T_B_S.setOrigin(transform.getOrigin());
             T_B_S.setRotation(transform.getRotation());
@@ -96,13 +101,13 @@ void sensor_odom_to_world::odomCallback(const nav_msgs::OdometryConstPtr &input)
             ROS_INFO("TF NOT GET");
         }
 
-    } else {
+    } else {//当两个静态变换已经获取后，针对每条接收到的里程计消息：
         ros_time = input->header.stamp;
         
         tf::Quaternion quaternion(input->pose.pose.orientation.x, input->pose.pose.orientation.y,
                                   input->pose.pose.orientation.z, input->pose.pose.orientation.w);
         tf::Vector3 vector3(input->pose.pose.position.x, input->pose.pose.position.y, input->pose.pose.position.z);
-        tf::Transform T_S0_Si(quaternion, vector3);
+        tf::Transform T_S0_Si(quaternion, vector3); //可以理解为在传感器初始坐标系下的里程计数据（目前lidar/sensor odometry）
 
         tf::Transform T_W_Si = T_W_S0 * T_S0_Si;
         tf::Transform T_W_Bi = T_W_Si * T_B_S.inverse();

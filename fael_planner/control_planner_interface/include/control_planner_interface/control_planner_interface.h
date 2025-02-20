@@ -28,12 +28,12 @@ namespace interface {
         enum struct RobotMotionState {
             waiting = 0, executing = 1, stoping = 2
         };
-
+        // 定义了一个简单 Action Client 类型 ExplorationPlannerClient，模板参数为 ExplorerPlannerAction。
         typedef actionlib::SimpleActionClient<control_planner_interface::ExplorerPlannerAction> ExplorationPlannerClient;
 
         ros::NodeHandle nh_;
         ros::NodeHandle nh_private_;
-
+        //以智能指针形式保存底层控制管理器 PCIManager 的实例，用于调用车辆运动、路径规划等控制接口。
         std::shared_ptr<PCIManager> pci_manager_;
 
         ros::Subscriber odometry_sub_;

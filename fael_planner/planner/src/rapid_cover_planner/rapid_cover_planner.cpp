@@ -11,15 +11,16 @@ namespace rapid_cover_planner {
                                          const ViewpointManager::Ptr &viewpoint_manager,
                                          const TopoGraph::Ptr &road_graph) :
             nh_(nh), nh_private_(nh_private) {
-        frontier_map_ = frontier_map;
-        map_2d_manager_ = map_2d_manager;
-        viewpoint_manager_ = viewpoint_manager;
-        road_graph_ = road_graph;
+        frontier_map_ = frontier_map;           //通常用于存储前沿地图信息（可能包含未知区域边界）。
+        map_2d_manager_ = map_2d_manager;       //2D地图管理器，提供基于2D地图的路径规划功能。
+        viewpoint_manager_ = viewpoint_manager; //视角管理器，管理各个候选观测点与对应的前沿信息。
+        road_graph_ = road_graph;               //拓扑图，可能代表道路网络或已构建的全局图。
 
         setParamsFromRos();
     }
 
     void RapidCoverPlanner::setParamsFromRos() {
+        //src/FAEL/fael_planner/planner/resource/topo_planner_1.yaml
         std::string ns = ros::this_node::getName() + "/RapidCoverPlanner";
 
         std::string pkg_path = ros::package::getPath("planner");
@@ -113,12 +114,13 @@ namespace rapid_cover_planner {
         ROS_INFO("start initializing ....");
         ros::WallTime start_time = ros::WallTime::now();
         initilize_num_++;
-
+        //调用 getSuitableTourPoints，传入当前机器人位置，从候选视点中筛选出适合的巡航点。
         getSuitableTourPoints(current_position);
 
         //calculate frontier gain
         tour_points_gains_.clear();
         max_gain_ = 0.0;
+        //调用 viewpointsFrontierGain，计算每个巡航点能看到多少前沿点（乘以增益系数），并更新最大增益。
         viewpointsFrontierGain(tour_points_, tour_points_gains_, max_gain_);
 
         if (tour_points_.size() > 3) {
@@ -148,6 +150,7 @@ namespace rapid_cover_planner {
             tour_points_ = tour_points;
         }
         ROS_INFO("plan graph update...");
+        //将道路图（全局拓扑图）拷贝到内部使用的 plan_graph_ 中
         planGraphConstruct(road_graph_->graph_, plan_graph_);
         ROS_INFO(" the plan graph update finish . vertex num is %zu, edge num is %zu ",
                  plan_graph_.getAllVertices().size(), plan_graph_.getAllEdges().size());
@@ -188,7 +191,7 @@ namespace rapid_cover_planner {
                 item.second.size() *frontier_map_->map_.getResolution() * frontier_map_->map_.getResolution()
                     > viewpoint_ignore_thre_ 
                     ) {
-
+                //根据视点与（当前位置）之间的距离，将其分为局部（小于局部范围的一半）和全局两部分。
                 if (item.first.distanceXY(viewpoint_manager_->current_position_) < local_range_ / 2) {
                     local_viewpoints.insert(item.first);
                 } else {
@@ -228,7 +231,7 @@ namespace rapid_cover_planner {
             if (!local_viewpoints.empty()) {
                 is_local_planning_ = true;
                 tour_points_ = local_viewpoints;
-            } else {
+            } else {//如果局部视点为空，则设置为全局规划，接下来处理全局视点。
                 is_local_planning_ = false;
                 auto graph = plan_graph_;
                 int current_point_id = addCurrentPositionToGraph(current_position, graph);
@@ -250,7 +253,7 @@ namespace rapid_cover_planner {
                                     distances.push_back(path_length);
                                     distances_viewpoints[path_length].push_back(item);
                                 }
-                            } else {
+                            } else {//路径不存在则使用欧式距离
                                 auto distance = item.distanceXY(current_position);
                                 if (distance > 1.0) {
                                     distances.push_back(distance);
@@ -302,6 +305,7 @@ namespace rapid_cover_planner {
                     frontier_map_->map_.isCollisionFree(
                             ufo::map::Point3(sensor_point.x(), sensor_point.y(), sensor_point.z()),
                             ufo::map::Point3(frontier.x(), frontier.y(), frontier.z()))) {
+                                //利用 ufomap 地图的碰撞检测函数判断两点间是否无障碍
                     viewpoint_visual_frontiers.push_back(frontier);
                 }
             }
@@ -313,7 +317,7 @@ namespace rapid_cover_planner {
     }
 
     void RapidCoverPlanner::planning(const geometry_msgs::Pose &current_pose, const utils::Point3D &current_directory, bool &is_successed) {
-        planner_mutex_.lock();
+        planner_mutex_.lock();//使用互斥锁 planner_mutex_ 保证线程安全
         solving_num_++;
 
         auto start_time = std::chrono::high_resolution_clock::now();
@@ -369,6 +373,9 @@ namespace rapid_cover_planner {
                 ROS_WARN(" the candidate points is empty, exploration finish. ");
             return false;
         } else {
+            //typedef std::vector<utils::Point3D> Path;
+            //using Point3DMap = std::unordered_map<Point3D, T, Point3DHash, Equal>;
+            //utils::Point3DMap<utils::Point3DMap<Path>> pre_paths_;
             std::vector<Point3D> need_to_erase;
             for (auto &item1:pre_paths_) {
                 if (viewpoint_manager_->viewpoints_attached_frontiers_.count(item1.first) == 0) {
@@ -403,13 +410,15 @@ namespace rapid_cover_planner {
 
             ROS_INFO("start get path maxtirx of tour points");
 
-            Path path_matrix[tour_points_num][tour_points_num];
+            Path path_matrix[tour_points_num][tour_points_num];//100*100
             Path empty_path;
             for (int i = 0; i < tour_points_num; ++i) {
                 for (int j = 0; j < tour_points_num; ++j) {
                     path_matrix[i][j] = empty_path;
                 }
             }
+            //首先尝试在2D地图（栅格地图）上寻找从当前点到该巡航点的路径；
+            //如果失败，则尝试在规划图（道路图）中寻找路径；
             for (int i = 1; i < tour_points_num; i++) {
                 ROS_INFO("local point get path in terrain map..");
                 Path path = getPathInGridMap2D(current_position, tour_points_term.at(i), map_2d_manager_->inflate_map_);
@@ -495,7 +504,7 @@ namespace rapid_cover_planner {
                     }
                     cost_matrix[0][y] = path_length;
 
-                    if(is_directory_){
+                    if(is_directory_){//如果 is_directory_ 为真，则根据当前朝向与目标方向的夹角调整代价值。
                         if(tour_points_term[y].distance(current_position)<frontier_map_->max_range_){
                             Point3D diff_vector(tour_points_term[y].x() - current_position.x(),
                                                 tour_points_term[y].y() - current_position.y(), 0);

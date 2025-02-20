@@ -27,15 +27,20 @@ SlamOutput::SlamOutput(const ros::NodeHandle &nh, const ros::NodeHandle &nh_priv
     }
 
     T_B_W = tf::Transform::getIdentity();
-
+    // 设置点云下采样滤波器的体素大小
     downSizeFilter.setLeafSize(down_voxel_size, down_voxel_size, down_voxel_size);
-
+    // 初始化发布器：
+    //  - 发布经过初步变换的 odometry 消息（话题名 "odometry_init"）
+    //  - 发布配准后的点云（"registered_scan"）
+    //  - 发布下采样后的点云（"dwz_scan_cloud"）
     odom_pub = nh_.advertise<nav_msgs::Odometry>("odometry_init", 1);
     reg_pub = nh_.advertise<sensor_msgs::PointCloud2>("registered_scan", 1);
     dwz_cloud_pub = nh_.advertise<sensor_msgs::PointCloud2>("dwz_scan_cloud", 1);
 
+    // 利用 message_filters 创建两个订阅器，一个订阅点云（"point_cloud"），一个订阅 odometry（"odometry"）
     local_cloud_sub_.reset(new message_filters::Subscriber<sensor_msgs::PointCloud2>(nh_, "point_cloud", 1));
     local_odom_sub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(nh_, "odometry", 100));
+    //通过同步策略（SyncPolicyLocalCloudOdom）保证这两个消息时间对齐，从而在回调中同时处理来自同一时刻的点云和 odometry 数据。
     sync_local_cloud_odom_.reset(new message_filters::Synchronizer<SyncPolicyLocalCloudOdom>(
             SyncPolicyLocalCloudOdom(100), *local_cloud_sub_, *local_odom_sub_));
     sync_local_cloud_odom_->registerCallback(boost::bind(&SlamOutput::pointCloudOdomCallback, this, _1, _2));
@@ -43,7 +48,7 @@ SlamOutput::SlamOutput(const ros::NodeHandle &nh, const ros::NodeHandle &nh_priv
 
 void SlamOutput::pointCloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr &scanIn,
                                         const nav_msgs::OdometryConstPtr &input) {
-
+    // 从 odometry 消息中提取位姿：构造四元数和位移向量，进而构造 tf::Transform 对象 T_W_Bi
     tf::Quaternion quaternion(input->pose.pose.orientation.x, input->pose.pose.orientation.y,
                               input->pose.pose.orientation.z, input->pose.pose.orientation.w);
     tf::Vector3 vector3(input->pose.pose.position.x, input->pose.pose.position.y, input->pose.pose.position.z);
@@ -54,7 +59,10 @@ void SlamOutput::pointCloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr &
         T_B_W = T_W_Bi.inverse();
         is_get_first = true;
     }
-
+    // 计算当前 odometry 相对于初始位姿的变换：
+    // T_B_Bi = T_B_W * T_W_Bi
+    // 这里 T_B_Bi 表示从 "map" 坐标系（初始参考坐标系=第一帧传感器坐标）到 "sensor" 坐标系（当前帧传感器坐标）的变换
+    // tf::StampedTransform在基本变换（tf::Transform）的基础上增加了时间戳和坐标系信息
     tf::StampedTransform ST_B_Bi = tf::StampedTransform(T_B_W * T_W_Bi, scanIn->header.stamp, frame_id,
                                                         child_frame_id); 
     broadcaster.sendTransform(ST_B_Bi);
@@ -76,13 +84,16 @@ void SlamOutput::pointCloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr &
 
     odom_pub.publish(odom_msg);
 
+    /************************ 以下为点云配准部分 ************************/
+
+     // 将传入的 ROS 点云消息转换为 PCL 格式
     pcl::PointCloud<pcl::PointXYZI>::Ptr scan = boost::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
     pcl::fromROSMsg(*scanIn, *scan);
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr scan_data = boost::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
     std::vector<int> scan_index;
     pcl::removeNaNFromPointCloud(*scan, *scan_data, scan_index);
-
+    // 对点云进行下采样：设置下采样滤波器的输入，执行滤波
     downSizeFilter.setInputCloud(scan_data);
     pcl::PointCloud<pcl::PointXYZI> scan_dwz;
     downSizeFilter.filter(scan_dwz);
@@ -92,6 +103,7 @@ void SlamOutput::pointCloudOdomCallback(const sensor_msgs::PointCloud2ConstPtr &
     scan_dwz_msg.header= scanIn->header;
     dwz_cloud_pub.publish(scan_dwz_msg);// publish downsample point cloud
 
+    // 将刚刚广播的 TF 变换转换为 Eigen 4x4 变换矩阵，用于对点云中的每个点做配准
     tf::StampedTransform T_b_bi = ST_B_Bi;
 
     Eigen::Matrix4f pose;

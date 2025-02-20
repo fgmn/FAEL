@@ -48,11 +48,15 @@ namespace interface {
                                  std::vector<geometry_msgs::Pose> &modified_path) {
        
         n_seq_++;
+        //构造目标消息：创建一个 VehicleExecuteGoal 类型的消息 path_goal，并设置其消息头中的：
+        // seq：使用递增的序列号；
+        // stamp：设置为当前时间；
+        // frame_id：使用之前设置的坐标系 ID。
         control_planner_interface::VehicleExecuteGoal path_goal;
         path_goal.header.seq = n_seq_;
         path_goal.header.stamp = ros::Time::now();
         path_goal.header.frame_id = frame_id_;
-        path_goal.paths = path_segments;
+        path_goal.paths = path_segments;    //规划执行的运动轨迹
         vehicle_execute_client_.sendGoal(path_goal);
         ros::spinOnce();
 

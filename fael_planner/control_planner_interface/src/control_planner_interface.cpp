@@ -11,7 +11,7 @@ namespace interface {
                                                      std::shared_ptr<PCIManager> &pci_manager)
             : nh_(nh), nh_private_(nh_private), pci_manager_(pci_manager),
               planner_client_(nh_, "topo_planner", true) {
-
+        //订阅主题 "odometry"，缓冲队列长度为 1，回调函数为 odometryCallback。当接收到里程计消息时，将会调用该回调函数。
         odometry_sub_ = nh_.subscribe("odometry",1, &ControlPlannerInterface::odometryCallback, this);
 
         if (!loadParams()) {
@@ -46,6 +46,7 @@ namespace interface {
     }
 
     bool ControlPlannerInterface::init() {
+        //在开始正式执行任务之前，需要确保能够收到有效的里程计数据。
         pose_is_ready_ = false;
 
         // checking odometry is ready.
@@ -79,6 +80,7 @@ namespace interface {
     }
 
     bool ControlPlannerInterface::callForPlanner(const int &iteration_id,  std::vector<control_planner_interface::Path> &path_segments) {
+        //该接口用于向规划器（Action Server 名为 "topo_planner"）发送规划请求，获取车辆应该执行的路径。
         control_planner_interface::ExplorerPlannerGoal goal;
         goal.iteration_id = iteration_id;
         ROS_INFO("call for the path to explore..");

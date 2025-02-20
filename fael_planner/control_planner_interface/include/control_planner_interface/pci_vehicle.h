@@ -13,7 +13,7 @@
 
 
 namespace interface {
-
+    //通过 ROS 的 Action Client 向对应的 Action Server 发送控制指令（例如执行路径、停止车辆等）
     class PCIVehicle : public PCIManager {
     public:
 

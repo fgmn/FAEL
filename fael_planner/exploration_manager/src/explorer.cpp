@@ -23,7 +23,7 @@ namespace explorer {
         loadParams();
 
         // Wait for the system is ready.
-        if (run_mode_ == RunModeType::kSim) {
+        if (run_mode_ == RunModeType::kSim) {//参数决定系统是处于仿真模式 (kSim) 还是实车模式 (kReal)。
             std_srvs::Empty srv;
             bool unpaused = ros::service::call("/gazebo/unpause_physics", srv);
             unsigned int i = 0;
@@ -72,13 +72,13 @@ namespace explorer {
 
                 std_msgs::Float64 finish;
                 finish.data = finish_explore_time;
-                finish_explore_pub_.publish(finish);
+                finish_explore_pub_.publish(finish);//发布探索结束时间
                 ros::spinOnce();
 
                 ros::Duration(2.0).sleep();
                 ros::shutdown();
             }
-
+            //如果当前迭代目标已扫描到（iteration_goal_is_scaned_）或需要进行下一次规划（need_to_next_iteration_ 为 true）
             if (iteration_goal_is_scaned_ || need_to_next_iteration_) {
                 if (iteration_goal_is_scaned_) {
                 }
@@ -88,6 +88,7 @@ namespace explorer {
                 iteration_num_++;
                 ROS_INFO("**Planning iteration  %i**", iteration_num_);
                 std::vector<control_planner_interface::Path> path_segments;
+                //调用 callForPlanner() 向规划接口请求路径规划，获取规划的路径段集合 path_segments。
                 if (callForPlanner(iteration_num_, path_segments)) {
                     if (path_segments.empty()) {
                         ROS_WARN("this iteration get an empty path ,need next planning iteration");
