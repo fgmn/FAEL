@@ -10,6 +10,8 @@ namespace path_execution {
     }
 
     OccupancyMap2D::OccupancyMap2D(double &grid_size, int &grid_x_num, int &grid_y_num, Status init_status) {
+        // 第三参数应为grid_y_num而非grid_x_num
+        //initialize(grid_size, grid_x_num, grid_x_num, init_status);
         initialize(grid_size, grid_x_num, grid_x_num, init_status);
     }
 

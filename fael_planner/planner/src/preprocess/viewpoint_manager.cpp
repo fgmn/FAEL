@@ -10,8 +10,9 @@ namespace preprocess {
                                        const Ufomap::Ptr &frontier_map, const Map2DManager::Ptr &map_2d_manager_) :
             nh_(nh), nh_private_(nh_private), frontier_map_(frontier_map), map_2d_manager_(map_2d_manager_) {
         getParamsFromRos();
-
+        //可视化代表性视点
         repre_points_pub_ = nh_private_.advertise<visualization_msgs::MarkerArray>("repre_points_markers", 1);
+        //可视化前沿与视点的配对关系。
         frontiers_viewpoints_pub_ = nh_private_.advertise<visualization_msgs::MarkerArray>(
                 "frontiers_viewpoints_markers", 1);
     }
@@ -104,14 +105,16 @@ namespace preprocess {
         ROS_INFO("representative points size is %zu", representative_points_.size());
 
         FrontierMap<Viewpoint> frontiers_viewpoints_term;
+        //尝试为所有前沿 frontier 匹配视点
         for (const auto &frontier: frontier_map_->getFrontiers()) {
             
+            //若该前沿离机器人太远(> 1.5 × max_range)，且原先已有记录(frontiers_viewpoints_.count(frontier)!=0)，则保留原来的视点；
             if (frontier.distanceXY(current_position_) >
                 frontier_map_->max_range_ * 1.5 
                 && !frontiers_viewpoints_.empty() &&
                 frontiers_viewpoints_.count(frontier) != 0) {
                 frontiers_viewpoints_term[frontier] = frontiers_viewpoints_[frontier];
-            
+            // 否则，如果 2D地图判断 nearFree(...) 表示可连接，则在 representative_points_ 中找与之合适的 sensor_point
             } else if (map_2d_manager_->inflate_map_.isNearFree(Point2D(frontier.x(), frontier.y()), frontier_dist_)) {
                 double min_distance = 100000;
                 ufo::map::Point3 frontier_coord(frontier.x(), frontier.y(), frontier.z());
@@ -123,7 +126,7 @@ namespace preprocess {
                     sensor_point.y() = point.y();
                     sensor_point.z() = point.z();
                     distance = frontier_coord.distanceXY(sensor_point);
-
+                    //找出一个满足距离 < (max_range-0.5)、垂直夹角<15°、3D 碰撞检测通过并且距离最小的点，作为其视点。
                     if (distance < frontier_map_->max_range_ - 0.5 &&
                         distance < min_distance &&
                         fabs(frontier_coord.z() - sensor_point.z()) / distance < tan(M_PI * 15 / 180) &&
@@ -146,6 +149,7 @@ namespace preprocess {
 
         Point3DQueue need_to_erase;
         for (const auto &term:viewpoints_attached_frontiers_) {
+            //若视点到当前位姿 < sample_dist_/2，则删除，同时把其对应的前沿在 global_frontier_cells_ 里移除；
             if (term.first.distanceXY(current_position_) < sample_dist_ / 2) {
                 need_to_erase.push_back(term.first);
                 for (const auto &frontier:term.second) {
@@ -168,7 +172,7 @@ namespace preprocess {
             candidate_viewpoints_.insert(item.first);
         }
 
-        new_viewpoints_.clear();
+        new_viewpoints_.clear();//新增了哪些视点。
         for (const auto &point: candidate_viewpoints_) {
             if (old_viewpoints.count(point) == 0) {
                 new_viewpoints_.insert(point);
@@ -181,7 +185,7 @@ namespace preprocess {
     ViewpointQueue ViewpointManager::samplePointsInGridMap2D() {
 
         double sample_dist = sample_dist_;
-
+        //网格采样
         ViewpointQueue sample_points;//points meeting sampling requirements
         for (double x = -map_2d_manager_->inflate_map_.x_length_ / 2;
              x <= map_2d_manager_->inflate_map_.x_length_ / 2; x += sample_dist) {
@@ -189,6 +193,11 @@ namespace preprocess {
                  y <= map_2d_manager_->inflate_map_.y_length_ / 2; y += sample_dist) 
             {
                 Point2D sample_2d(current_position_.x() + x, current_position_.y() + y);
+                // 一系列判断:
+                // 1) point在可探索区域 (isInExplorationArea)
+                // 2) 2D地图中 status=Free, 并且不NearOccupy/Empty/Unknown
+                // 3) 距离(current_position_) < (frontier_map_->max_range_ - (robot_height_ - sensor_height_)/ tan(15°))
+                // 4) isCollisionFreeStraight(位置, sample_2d)
                 if (frontier_map_->isInExplorationArea(sample_2d.x(), sample_2d.y())
                     && map_2d_manager_->inflate_map_.getStatusInMap2D(sample_2d) == Status2D::Free
                     && !map_2d_manager_->inflate_map_.isNearOccupy(sample_2d, 0.3)

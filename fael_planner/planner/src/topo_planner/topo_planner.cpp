@@ -37,6 +37,7 @@ namespace topo_planner {
 
     void
     TopoPlanner::plannerCallback(const control_planner_interface::ExplorerPlannerGoalConstPtr &goal) {
+        //上锁：避免在规划过程中被其他线程修改关键地图或元素数据。
         elements_->frontier_map_->map_mutex_.lock();
         elements_->map_2d_manager_->map_2d_update_mutex_.lock();
         elements_->elements_update_mutex_.lock();
@@ -63,6 +64,8 @@ namespace topo_planner {
             ROS_INFO("start planning ...");
             bool is_successed = true;
             planner_->planning(elements_->current_pose_, elements_->forward_directory_,is_successed);
+            //若成功但结果 tsp_path_ 为空，说明找不到可行路线；若成功且有 path_segments_，
+            //就调用 wayPoseGeneration 把每段路径转换成 geometry_msgs::Pose 列表，加到 result.paths 里。
             if (is_successed) {
                 if (planner_->tsp_path_.empty()) {
                     ROS_INFO("planner get a empty path");
@@ -76,7 +79,7 @@ namespace topo_planner {
                         result.paths.push_back(path_segment);
                     }
                 }
-                planner_action_server_.setSucceeded(result);
+                planner_action_server_.setSucceeded(result);//反馈给 Action 客户端。
                 ROS_INFO("the iteration planning finish");
             } else {
                 ROS_WARN("the iteration planning fail");
@@ -110,6 +113,7 @@ namespace topo_planner {
         way_poses.clear();
         if (!path.empty()) {
             for (int i = 0; i < path.size(); i++) {
+                //循环每个点构造一个 tf::Pose
                 tf::Vector3 point(path[i].x(), path[i].y(), path[i].z());
 
                 tf::Vector3 axis(0, 0, 1);
@@ -144,6 +148,7 @@ namespace topo_planner {
     }
 
     bool TopoPlanner::isCurrentGoalScanned() {
+        //如果 goal_point_frontiers_ 中还有相当数量的前沿未被扫描，就返回 false；否则 true。
         int is_frontier_num = 0;
         for (const auto &frontier: planner_->goal_point_frontiers_) {
             if (elements_->frontier_map_->isFrontier(frontier)) {

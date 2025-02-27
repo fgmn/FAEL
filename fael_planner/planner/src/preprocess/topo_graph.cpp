@@ -9,6 +9,7 @@ namespace preprocess {
     TopoGraph::TopoGraph(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private) :
             nh_(nh), nh_private_(nh_private), is_graph_initialized_(false) {
         getParamsFromRos();
+        //在私有命名空间下发布 MarkerArray 消息，话题名称为 "topo_graph_markers"，用于可视化拓扑图。
         graph_pub_ = nh_private_.advertise<visualization_msgs::MarkerArray>("topo_graph_markers", 1);
 
     }
@@ -71,8 +72,11 @@ namespace preprocess {
                                                         const ViewpointManager::Ptr &viewpoint_manager,
                                                         const Ufomap::Ptr &frontier_map) {
         if (map_2d_manager->is_map_updated_) {
+            //若 2D 地图有更新，则继续，否则不做操作
             auto start_time = ros::WallTime::now();
             Point3DSet sample_points;//points meeting sampling requirements
+            //在以 current_position_ 为中心的正方形区域 [±(x_length_/2), ±(y_length_/2)] 内，
+            //每隔 sample_dist_ 采样一次 (x, y)；
             for (double x = -map_2d_manager->inflate_map_.x_length_ / 2;
                  x <= map_2d_manager->inflate_map_.x_length_ / 2; x += sample_dist_) {
                 for (double y = -map_2d_manager->inflate_map_.y_length_ / 2;
@@ -132,7 +136,7 @@ namespace preprocess {
     void TopoGraph::growingByMap2dAndSamplePoints(const GridMap2D &grid_map_2d, const Point3DSet &sample_points) {
         
         Point3DQueue local_points;
-
+        //仅保留与 current_position_ 距离小于 (x_length_*1.5 + connectable_range_) 的顶点
         for (const auto &vertex: graph_.getAllVertices()) {
             if (current_position_.distance(vertex) <
                 (grid_map_2d.x_length_ * 3 / 2 + connectable_range_)) {//range of points to compare
@@ -143,6 +147,7 @@ namespace preprocess {
         Point3DQueue suitable_points;
         Point3DQueue selected_points = local_points;//store points that need to be searched edges' connection relationship
         double min_intervel = 1.0;
+        //对于每个采样点 point，若与 selected_points 中所有点距离都 >= min_intervel=1.0，才将其视为“合适的点”
         for (const auto &point: sample_points) {
             bool suitable = true;
             for (const auto &vertex: selected_points) {
@@ -160,6 +165,7 @@ namespace preprocess {
 
         pcl::KdTreeFLANN<pcl::PointXYZ> kd_tree;
         pcl::PointCloud<pcl::PointXYZ> point_cloud;
+        //用 selected_points 构建一个 kd_tree，其中包含<局部>图中已有顶点 + 这次新增的采样点；
         for (const auto &point:selected_points) {
             point_cloud.emplace_back(point.x(), point.y(), point.z());
         }
@@ -171,11 +177,13 @@ namespace preprocess {
                 pcl::PointXYZ center(point.x(), point.y(), point.z());
                 std::vector<int> neighbors_ids;
                 std::vector<float> neighbors_distance;
+                //在 kd-tree 做 radiusSearch 得到周围点；
                 kd_tree.radiusSearch(center, connectable_range_, neighbors_ids, neighbors_distance);
                 Point3DQueue neighbor_vertexs;
                 int connected_num = 0;
                 for (const auto &id:neighbors_ids) {
                     Point3D vertex(point_cloud[id].x, point_cloud[id].y, point_cloud[id].z);
+                    //检测在 2D 平面直线中无碰撞，则建立双向边；
                     if (point_id != id && grid_map_2d.isCollisionFreeStraight(Point2D(point.x(), point.y()),
                                                                               Point2D(vertex.x(), vertex.y()))) {
                         int vertex_id = -1;
@@ -183,7 +191,7 @@ namespace preprocess {
                         graph_.addTwoWayEdge(point_id, vertex_id);
                         connected_num++;
                         if (connected_num > connectable_num_)
-                            break;
+                            break;//避免过度连边
                     }
                 }
             }

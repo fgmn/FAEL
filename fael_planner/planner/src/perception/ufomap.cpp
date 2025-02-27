@@ -42,12 +42,13 @@ namespace perception {
 
         point_cloud_sub_.reset(new message_filters::Subscriber<sensor_msgs::PointCloud2>(nh_, "point_cloud", 1));
         odom_sub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(nh_, "sensor_odometry", 1000));
+        //用 message_filters::Synchronizer 同步这两个消息, 回调到 pointCloudOdomCallback。
         sync_point_cloud_odom_.reset(new message_filters::Synchronizer<SyncPolicyLocalCloudOdom>(
                 SyncPolicyLocalCloudOdom(100), *point_cloud_sub_, *odom_sub_));
         sync_point_cloud_odom_->registerCallback(boost::bind(&Ufomap::pointCloudOdomCallback, this, _1, _2));
 
         voxel_filter_.setLeafSize(scan_voxel_size_, scan_voxel_size_, scan_voxel_size_);
-
+        //每2秒调用一次 writeUfomapCallback 写地图到文件。
         write_ufomap_timer_ = nh_private_.createTimer(ros::Duration(2.0), &Ufomap::writeUfomapCallback, this);
 
         if (0 < pub_rate_) {
@@ -190,7 +191,7 @@ namespace perception {
     void Ufomap::pointCloudOdomCallback(const sensor_msgs::PointCloud2::ConstPtr &scan,
                                         const nav_msgs::OdometryConstPtr &odom) {
         sensor_frame_id_ = odom->child_frame_id;
-
+        // 更新当前传感器位姿 (current_sensor_pose_)
         current_sensor_pose_.translation().x() = odom->pose.pose.position.x;
         current_sensor_pose_.translation().y() = odom->pose.pose.position.y;
         current_sensor_pose_.translation().z() = odom->pose.pose.position.z;
@@ -209,7 +210,7 @@ namespace perception {
         voxel_filter_.setInputCloud(scan_cloud);
         pcl::PointCloud<pcl::PointXYZ> downsize_scan_cloud;
         voxel_filter_.filter(downsize_scan_cloud);
-
+        //构建 UFOMap pointCloud 并 transform 到传感器坐标
         ufo::map::PointCloud downsize_cloud;
         for (auto &point: downsize_scan_cloud) {
             downsize_cloud.push_back(ufo::map::Point3(point.x, point.y, point.z));
@@ -223,6 +224,8 @@ namespace perception {
                 cloud.push_back(map_.toCoord(map_.toKey(point, 0), 0));  
             }
         }
+        //将点云以射线插入到 Octree 中，标记空闲/占据；
+        //进行“离散”插入(可选) 或 普通插入
         if (insert_discrete_) {
             map_.insertPointCloudDiscrete(current_sensor_pose_.translation(), cloud, max_range_, insert_depth_,
                                           simple_ray_casting_, early_stopping_, false);
@@ -243,7 +246,7 @@ namespace perception {
                                                                                odom->header.stamp);
             ufo::math::Pose6 T_S_B = ufomap_ros::rosToUfo(T_s_b.transform);
             current_robot_pose_ = current_sensor_pose_ * T_S_B;
-
+            //根据 current_robot_pose_ 建立一个包围机器人的 AABB，并把该空间设置为最小置信值(free) 来防止将机器人自身标记为障碍。
             if (clear_robot_enabled_) {
                 ufo::map::Point3 robot_bbx_min(current_robot_pose_.x() - sensor_height_,
                                                current_robot_pose_.y() - sensor_height_,
@@ -286,7 +289,7 @@ namespace perception {
         }
 
         statisticAndPubMarkers();
-
+        //发布一个简单多边形 (polygon) 描述 [min_x_,max_x_,min_y_,max_y_] 的区域。
         geometry_msgs::PolygonStamped polygon;
         polygon.header.frame_id = frame_id_;
         polygon.header.stamp = ros::Time::now();
@@ -415,7 +418,7 @@ namespace perception {
         known_cell_codes_.insert(changed_cell_codes_.begin(), changed_cell_codes_.end());
 
         map_.resetChangeDetection();
-
+        //增量式更新 frontiers（对应论文Frontier Detection）
         findPlaneLocalFrontier();
         updatePlaneGlobalFrontier();
     }
@@ -498,6 +501,7 @@ namespace perception {
         for (const auto &changedCellCode: changed_cell_codes_) {
             if (frontier_depth_ == changedCellCode.getDepth() && history_frontier_cells_.count(changedCellCode)==0) {  
                 ufo::map::Point3 point = map_.toCoord(changedCellCode.toKey());
+                //要求在探索范围内(x,y 在 [min_x_,max_x_, min_y_,max_y_])并z在 [current_robot_pose_.z()+robot_bottom_, +robot_height_]；
                 if (isInExplorationArea(point.x(),point.y()) &&
                     point.z() > current_robot_pose_.z() + robot_bottom_ &&
                     point.z() < current_robot_pose_.z() + robot_height_) {
@@ -507,7 +511,7 @@ namespace perception {
                     if (point.distanceXY(current) > 0.6) {    
                         if (isFrontier(changedCellCode)) {
                             local_frontier_cells_.insert(changedCellCode);
-                            history_frontier_cells_.insert(changedCellCode);
+                            history_frontier_cells_.insert(changedCellCode);//避免重复检测
                         }
                     }
                 }
@@ -540,7 +544,7 @@ namespace perception {
     CodeUnorderSet
     Ufomap::get_XY_NeighborCell(const ufo::map::Code &cell_code, unsigned int depth) const {
         CodeUnorderSet changed_cell_neighbor;
-        ufo::map::Point3 cell_center = map_.toCoord(cell_code.toKey(), depth);
+        ufo::map::Point3 cell_center = map_.toCoord(cell_code.toKey(), depth);//中心 3D 坐标
 
         changed_cell_neighbor.insert(ufo::map::Code(
                 map_.toKey(cell_center.x() - map_.getResolution(), cell_center.y(), cell_center.z(), depth)));
@@ -569,7 +573,7 @@ namespace perception {
 
 
     bool Ufomap::isFrontier(const ufo::map::Code &frontier) const {   
-
+        //若该 cell 是“Free”，再取其 x-y 平面邻居(4连通)，若其中有 isUnknown(iter) 的则说明它是一个“前沿”，返回true。
         if (map_.isFree(frontier)) {
             CodeUnorderSet xy_neighbor_cells = get_XY_NeighborCell(frontier, frontier.getDepth());  
             bool unknowFlag = false;
@@ -607,6 +611,8 @@ namespace perception {
         double current_time = static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(
                 std::chrono::high_resolution_clock::now().time_since_epoch()).count()) / 1000000;
         fout.open(txt_known_name, std::ios_base::in | std::ios_base::out | std::ios_base::app);
+        //在 UFOMap 中，地图被分割成许多立方体（或 voxel），而每个 voxel 在平面上的尺寸大约为 resolution × resolution。
+        //当我们只考虑深度为 0 的节点时，这些节点代表的是最精细的分辨率，即每个 voxel 对应的面积约为 resolution²。
         fout << current_time << "\t" << (current_time - start_time) << "\t" << known_plane_cell_num_
              << "\t" << known_plane_cell_num_ * map_.getResolution() * map_.getResolution() << std::endl;
         fout.close();
@@ -622,7 +628,7 @@ namespace perception {
         }
         return size;
     }
-
+    //只统计位于地面（或接近地面、Z 值很低）的节点数量
     std::size_t Ufomap::getKnownPlaneNodeNum(const CodeUnorderSet &knownCellCodes) {
         std::size_t size = 0;
         for (const auto &iter: knownCellCodes) {

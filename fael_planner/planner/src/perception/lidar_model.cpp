@@ -8,7 +8,7 @@ LidarModel::LidarModel(double max_range,
                        double vertical_angle_theta, double vertical_angle_min, double vertical_angle_max,
                        double horizontal_angle_theta, double horizontal_angle_min, double horizontal_angle_max) {
     max_range_ = max_range;
-
+    //垂直方向扫描分辨率以及最小/最大角度（单位度数）。通过垂直方向扫描范围和theta计算出线数
     vertical_angle_theta_ = vertical_angle_theta;
     vertical_angle_min_ = vertical_angle_min;
     vertical_angle_max_ = vertical_angle_max;
@@ -30,7 +30,7 @@ LidarModel::LidarModel(double max_range,
             pcl::PointXYZ point(max_range * cos(phi) * cos(theta), max_range * cos(phi) * sin(theta),
                                 max_range * sin(phi));
             //Store the scanned point cloud (taking the lidar as the origin)
-            lidar_point_cloud_[i][j] = point;
+            lidar_point_cloud_[i][j] = point;//在该方向若打到最大距离时，对应的点坐标。
         }
     }
 }
@@ -66,7 +66,7 @@ LidarModel::expandNoRay(pcl::PointCloud<pcl::PointXYZ> &input_cloud) {
         else if (i >= line_num_)
             i = line_num_ - 1;
 
-        model_cloud[i][j] = true;
+        model_cloud[i][j] = true;//该方向实际探测到了点。
     }
 
     pcl::PointCloud<pcl::PointXYZ> output_cloud;
@@ -79,7 +79,7 @@ LidarModel::expandNoRay(pcl::PointCloud<pcl::PointXYZ> &input_cloud) {
 
     return output_cloud;
 }
-
+//将实际观测结果覆盖到理想模型中，从而得到一个“填充了实际观测点 + 未观测方向保留满量程点”的网格化雷达点云。
 pcl::PointCloud<pcl::PointXYZ> LidarModel::combineCloud(pcl::PointCloud<pcl::PointXYZ> &input_cloud) {
     std::map<int, std::map<int, pcl::PointXYZ>> model_cloud = lidar_point_cloud_;
     for (const auto &point:input_cloud) {

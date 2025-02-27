@@ -27,6 +27,7 @@ namespace graph {
         edges_.push_back(connection);
         std::vector<double> edges_distance;
         distance_.push_back(edges_distance);
+        //建立“点坐标 -> 顶点索引”的映射，便于通过 3D 坐标快速找到图中顶点ID
         points_ids_[point] = vertices_.size() - 1;
 
         return vertices_.size() - 1;
@@ -83,6 +84,8 @@ namespace graph {
     }
 
     void PlanGraph::updateKdtree() {
+        //调用 setInputCloud 将其共享指针传给 kd_tree_，便于后续最近邻或半径搜索。
+        //在新增或删除顶点后，要调用此函数刷新 KD-tree。
         kd_tree_.setInputCloud(points_.makeShared());
     }
 
@@ -92,6 +95,7 @@ namespace graph {
             pcl::PointXYZ center(point.x(), point.y(), point.z());
             std::vector<int> neighbors_ids;
             std::vector<float> neighbors_distance;
+            //用 kd_tree 对目标 point 做最近邻搜索 (nearestKSearch，k=1)，得到最近邻索引 neighbors_ids[0]；
             kd_tree.nearestKSearch(center, k, neighbors_ids, neighbors_distance);
             utils::Point3D nearest_point(points_[neighbors_ids.front()].x, points_[neighbors_ids.front()].y,
                                          points_[neighbors_ids.front()].z);
@@ -108,6 +112,7 @@ namespace graph {
     std::vector<int>
     PlanGraph::getNeighborVertexsIDs(pcl::KdTreeFLANN<pcl::PointXYZ> &kd_tree, const utils::Point3D &point,
                                      const double &range, std::vector<utils::Point3D> &neighbor_vertexs) {
+        //对 point 做半径搜索 (radiusSearch)，找到 range 范围内的所有顶点；
         pcl::PointXYZ center(point.x(), point.y(), point.z());
         std::vector<int> neighbors_ids;
         std::vector<float> neighbors_distance;
@@ -205,6 +210,7 @@ namespace graph {
         // Backtrack to find path
         waypoint_ids.clear();
         int current = end_v_id;
+        //根据 backpointers[end_v_id] 是否可达判断是否找到路径，若可达就回溯出 waypoint_ids。
         if (backpointers[current] == INF) {// no path found
             std::cout << "no path found, return empty path" << std::endl;
             return false;

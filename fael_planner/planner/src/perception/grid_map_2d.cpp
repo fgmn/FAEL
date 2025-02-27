@@ -56,7 +56,7 @@ namespace perception {
             }
         }
     }
-
+    //从起点 start 到终点 end 在地图中投射一条射线，沿射线走过的每个栅格索引依次加入 ray。
     Ray2D GridMap2D::castRay(Point2D &start, Point2D &end) {
         Ray2D ray;
         Index2D start_sub = getIndexInMap2D(start);
@@ -102,6 +102,7 @@ namespace perception {
     }
 
     void GridMap2D::inflateGridMap2D(const double &inflate_radius,const double &inflate_empty_radius) {
+        //如果原来是 Occupied，则将以它为中心的一个正方形区域内的所有格子状态也设为 Occupied。
         auto inflate_grids_ = grids_;
         int increment = std::ceil(abs(inflate_radius / grid_size_));
         int increment_empty = std::ceil(abs(inflate_empty_radius / grid_size_));
@@ -116,7 +117,7 @@ namespace perception {
                         }
                     }
                 }
-
+                //类似地，如果原来是 Empty，则将周围区域也设为空状态。
                 if (grids_[I][J].status == Status2D::Empty) {
                     for (int i = -increment_empty; i <= increment_empty; ++i) {
                         for (int j = -increment_empty; j <= increment_empty; ++j) {

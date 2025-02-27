@@ -175,13 +175,14 @@ namespace perception {
                 }
             }
         }
-
-        for (auto &point: local_cloud) { 
+        //添加局部点云信息
+        for (auto &point: local_cloud) {
             if (map_.isInMapRange2D(point))
                 map_.addPointInGrid(map_.getIndexInMap2D(point), point);
         }
 
         inflate_map_ = map_;
+        //膨胀地图
         inflate_map_.inflateGridMap2D(inflate_radius_, inflate_empty_radius_);//Use inflated grid
 
         is_map_updated_ = true;
