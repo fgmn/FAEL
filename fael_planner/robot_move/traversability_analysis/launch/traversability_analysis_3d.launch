@@ -13,7 +13,10 @@
     <node pkg="traversability_analysis" type="traversability_analysis_node_3d" name="traversability_analysis_node" output="log" required="true">
         <remap from="/odometry" to="/laser_odom_init"/>
         <remap from="/static_point_cloud" to="/online_local_map_node/local_map"/>
-
+        <!-- “vehicle_height” 是lidar相对于地面的高度
+        "upper_bound_z" 是lidar的z值（相对于map系），这里为 0
+        “lower_bound_z” 是用于剔除一些点云的参数，绝对值通常比vehicle_height 的值大0.03即可（需相对于map系，是负值）。
+        "low_z" 是一个调节地形误分析的参数，由于我们当时用的slam存在较大误差，表示地面的激光点可很厚，这个参数为该厚度的上限。 -->
         <param name="scan_voxel_size" value="0.1"/>
         <param name="vehicle_height" value="0.52"/>
         <param name="lower_bound_z" value="-0.55"/>

@@ -37,6 +37,7 @@ namespace topo_planner {
 
     void
     TopoPlanner::plannerCallback(const control_planner_interface::ExplorerPlannerGoalConstPtr &goal) {
+        //最核心的回调
         //上锁：避免在规划过程中被其他线程修改关键地图或元素数据。
         elements_->frontier_map_->map_mutex_.lock();
         elements_->map_2d_manager_->map_2d_update_mutex_.lock();

@@ -4,6 +4,10 @@ frame_id: world
 robot_base_frame_id: base_link
 
 UFOMap:
+# “robot_height” 实际为frontiers的上限， "robot_bottom"为下限，值都是相对于“world”
+
+# "sensor_height" 为lidar到 “base_link”的高度。
+
   # robot size configuration
   robot_height: 0.8 
   robot_bottom: 0.05
