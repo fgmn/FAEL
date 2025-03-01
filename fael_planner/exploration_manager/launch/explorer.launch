@@ -11,7 +11,7 @@
         <remap from="/vehicle_stop" to="/path_execution_node/vehicle_stop"/>
         <remap from="/topo_planner" to="/topo_planner_node/topo_planner"/>
         <!-- 仿真模式 (kSim) 还是实车模式 (kReal) -->
-        <param name="run_mode" value="kSim"/>
+        <param name="run_mode" value="kReal"/>
         <param name="frame_id" value="world"/>
         <param name="init_motion_enable" value="true"/>
         <param name="init_x" value="3.0"/>

@@ -90,7 +90,7 @@ namespace path_execution {
         for (const auto &item :terrain_map->grids) {
             terrain_map_.status.push_back(item.status);
         }
-
+        // ROS_INFO("terrain_map->header.frame_id: %s", terrain_map->header.frame_id.c_str());
         if (terrain_map->header.frame_id == global_frame_) {  
             terrain_map_.frame_id = terrain_map->header.frame_id;
             terrain_map_.min_x = terrain_map->min_x;
@@ -107,7 +107,7 @@ namespace path_execution {
                 tf_listener_.transformPose(global_frame_, min_pose, min_pose);
             }
             catch (const tf::TransformException &ex) {
-                ROS_WARN_THROTTLE(1, " get terrain map acquire---        %s ", ex.what());
+                ROS_WARN_THROTTLE(1, "path_execution.cpp get terrain map acquire---        %s ", ex.what());
                 return;
             }
             terrain_map_.frame_id = global_frame_;

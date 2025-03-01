@@ -110,7 +110,7 @@ namespace perception {
             terrain_map_.min_x = terrain_map->min_x;
             terrain_map_.min_y = terrain_map->min_y;
             terrain_map_.z_value = terrain_map->z_value;
-        } else {
+        } else {//当 frame_id 不一致时
             geometry_msgs::PoseStamped min_pose;
             min_pose.header = terrain_map->header;
             min_pose.pose.position.x = terrain_map->min_x;
@@ -118,10 +118,11 @@ namespace perception {
             min_pose.pose.position.z = terrain_map->z_value;
             min_pose.pose.orientation.w = 1.0;
             try {
+                //使用 TF 监听器 tf_listener_ 将 min_pose 从原始坐标系转换到预期的 frame_id_ 坐标系。
                 tf_listener_.transformPose(frame_id_, min_pose, min_pose);
             }
             catch (const tf::TransformException &ex) {
-                ROS_WARN_THROTTLE(1, " get terrain map acquire---    %s ", ex.what());
+                ROS_WARN_THROTTLE(1, "map_2d_manager.cpp get terrain map acquire---    %s ", ex.what());
                 return;
             }
             terrain_map_.frame_id = frame_id_;

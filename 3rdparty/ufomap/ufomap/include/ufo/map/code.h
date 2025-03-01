@@ -47,7 +47,7 @@
 #include <ufo/map/types.h>
 
 // STD
-#include <immintrin.h>
+// #include <immintrin.h>
 
 #include <algorithm>
 #include <execution>

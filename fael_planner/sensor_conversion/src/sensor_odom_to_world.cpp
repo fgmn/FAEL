@@ -62,7 +62,8 @@ sensor_odom_to_world::sensor_odom_to_world(const ros::NodeHandle &nh, const ros:
 
 
 void sensor_odom_to_world::odomCallback(const nav_msgs::OdometryConstPtr &input) {
-
+    // sensor_frame = "sensor";
+    // sensor_init_frame = "map";
     sensor_frame = input->child_frame_id;
     sensor_init_frame = input->header.frame_id;
     if (!is_get_transform) {  
@@ -70,6 +71,8 @@ void sensor_odom_to_world::odomCallback(const nav_msgs::OdometryConstPtr &input)
         try {
             tf::StampedTransform transform;
             //获取从全局坐标系到传感器初始坐标系的变换，并存储到 T_W_S0 中。
+            // ROS_INFO("world_frame: %s, sensor_init_frame: %s", world_frame.c_str(), sensor_init_frame.c_str());
+            // fflush(stdout);
             tf_listener_1.lookupTransform(world_frame, sensor_init_frame, ros::Time(0), transform);
             T_W_S0.setOrigin(transform.getOrigin());
             T_W_S0.setRotation(transform.getRotation());
@@ -84,6 +87,7 @@ void sensor_odom_to_world::odomCallback(const nav_msgs::OdometryConstPtr &input)
         try {
             tf::StampedTransform transform;
             //获取从目标坐标系（例如 base_link）到传感器当前坐标系的变换，并存储到 T_B_S 中。
+            // ROS_INFO("target_frame: %s, sensor_frame: %s", target_frame.c_str(), sensor_frame.c_str());
             tf_listener_2.lookupTransform(target_frame, sensor_frame, ros::Time(0), transform);
             T_B_S.setOrigin(transform.getOrigin());
             T_B_S.setRotation(transform.getRotation());

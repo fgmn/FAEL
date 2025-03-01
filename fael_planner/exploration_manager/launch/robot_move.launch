@@ -23,7 +23,7 @@
     <node pkg="tf" type="static_transform_publisher" name="map_to_world" args="0.0 0 0.456 0 0 0  $(arg world_frame_id) $(arg sensor_init_frame_id) 10 "/>
     <node pkg="tf" type="static_transform_publisher" name="sensor_to_base_link" args="-0.0 0 -0.456 0 0 0  $(arg sensor_frame_id) $(arg robot_base_frame_id) 10"/>
 
-    <node name="sensor_odom_to_world" pkg="sensor_conversion" type="sensor_odom_to_world_node" output="log">
+    <node name="sensor_odom_to_world" pkg="sensor_conversion" type="sensor_odom_to_world_node" output="screen">
         <remap from="/sensor/sensor_init/odometry" to="/laser_odom_init"/>
         <remap from="/sensor/world/odometry" to="/sensor_to_world/odometry"/>
         <remap from="/base_link/world/odometry" to="/base_link/odometry"/>
