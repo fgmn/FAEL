@@ -10,7 +10,10 @@
         <arg name="y" value="0"/>
         <arg name="z" value="1.5"/>            
 
-        <arg name="world_name" value="$(find exploration_manager)/worlds/scene_1.world"/>
+        <!-- <arg name="world_name" value="$(find exploration_manager)/worlds/forest.world"/> -->
+        <!-- <arg name="world_name" value="$(find exploration_manager)/worlds/partition.world"/> -->
+        <arg name="world_name" value="$(find exploration_manager)/worlds/combined.world"/>
+        <!-- <arg name="world_name" value="$(find exploration_manager)/worlds/scene_1.world"/> -->
         <!-- <arg name="world_name" value="$(find exploration_manager)/worlds/scene_2.world"/> -->
         <!-- <arg name="world_name" value="$(find exploration_manager)/worlds/scene_3.world"/> -->
         <!-- <arg name="world_name" value="$(find exploration_manager)/worlds/scene_4.world"/> -->

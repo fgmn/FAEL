@@ -8,6 +8,9 @@ namespace path_execution {
 
     PathExecution::PathExecution(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private) :
             nh_(nh), nh_private_(nh_private), loop_num_(0),
+            //Action Server：
+            // execute_server_("vehicle_execute") → 当有 VehicleExecute 目标时，执行回调 executeCallback(...)；
+            // stop_move_server_("vehicle_stop") → 当有 VehicleStop 目标时，执行回调 stopMoveCallback(...)。
             execute_server_(nh_private_, "vehicle_execute", boost::bind(&PathExecution::executeCallback, this, _1),
                             false),
             stop_move_server_(nh_private_, "vehicle_stop", boost::bind(&PathExecution::stopMoveCallback, this, _1),
@@ -51,6 +54,7 @@ namespace path_execution {
         ROS_DEBUG("started server");
 
         // generate local path primitives
+        //对 dis=3.0, angle=60.0, delta_angle=3.0 做了个循环，生成了 path2d_list_ → 表示一系列曲线或弧线（以向左或向右转一定角度）。
         double dis = 3.0;
         double angle = 60.0;
         double delta_angle = 3.0;
@@ -122,7 +126,7 @@ namespace path_execution {
         terrain_map_.max_y = terrain_map_.min_y + terrain_map_.grid_size * terrain_map_.grid_width_num;
 
 
-        occupancy_map_mutex_.lock();
+        occupancy_map_mutex_.lock();//用于多线程下保护 occupancy_map_ 相关操作。
 
         occupancy_map_.clearMap(); 
 
@@ -136,9 +140,9 @@ namespace path_execution {
         occupancy_map_.setMapCenterAndBoundary(center_point); 
 
         setOccupancyMap(occupancy_map_, terrain_map_); 
-
+        //对占据栅格进行膨胀（或者对空格膨胀），以便对障碍做安全距离处理。
         occupancy_map_.inflateOccupancyMap(inflate_radius_, inflate_empty_radius_); 
-
+        //近似把机器人自身所在网格周围一定半径（inflate_empty_radius_ + grid_size_）强制标记为 free，从而避免偶然的错误占用导致无法行驶。
         clearRobotNeighbor(center_point, inflate_empty_radius_ +
                                          occupancy_map_.grid_size_); 
 
@@ -154,7 +158,10 @@ namespace path_execution {
 
     void PathExecution::clearRobotNeighbor(const Point2D &center_point, double clear_radius) {
         if (occupancy_map_.getStatusInFlateMap(center_point) != Status::free) { 
-             
+            //如果机器人当前所在处并非 free，就做一些调整：
+            // 找到离机器人最近的 free 网格；
+            // 通过在 [source → target] 间直线插点，把经过的网格都标为 free；
+            //确保机器人不会因为局部地图的误差或者过时数据而被“困”在自己身边的栅格里。
             Index2D center_index = occupancy_map_.getIndexInMap(center_point);
 
             double min_distance = 1000000;
@@ -244,6 +251,8 @@ namespace path_execution {
     }
 
     bool PathExecution::isStopped() {
+        //通过比较本次与上次里程计之间的位置变化 dist 和角度变化 yaw_delta 与时间间隔 odom_delta_t，
+        //若平均速度/角速度小于阈值 (stop_vel_thres_ / stop_rot_thres_) 则判定机器人已停止。
         double dist = sqrt(pow(current_pose_.position.x - last_pose_.position.x, 2) +
                            pow(current_pose_.position.y - last_pose_.position.y, 2));
 
@@ -322,6 +331,7 @@ namespace path_execution {
     }
 
     Path PathExecution::interpolatePath(const Path &path) const {
+        //对输入的路径进行插值，即在每两个相邻的路径点之间，根据一定的步长在直线上插入更多的中间点，使结果路径更平滑密集。
         ROS_INFO("interpolate the path..");
         Path interpolated_path;
 
@@ -385,6 +395,7 @@ namespace path_execution {
 
         if (control_freq_ == 0.0)
             return false;
+        // 设置控制频率
         ros::Rate r(control_freq_);
   
         int ind = 0;
@@ -394,17 +405,17 @@ namespace path_execution {
                 return false;
             }
 
-            Path current_path = path_segments_[ind];
+            Path current_path = path_segments_[ind];//是当前要执行的那一段。
             int current_waypoint_id = 0;
             occupancy_map_mutex_.lock();
-            for (int i = static_cast<int>(current_path.size() - 1); i >= 0; --i) {
+            for (int i = static_cast<int>(current_path.size() - 1); i >= 0; --i) {//从后往前查找一个可行 Waypoint
                 Point2D point(current_path[i].position.x, current_path[i].position.y);
                 if (occupancy_map_.getStatusInFlateMap(point) == Status::free) { 
                     std::vector<Point2D> path_2d = makeLocalPlan(current_path[i], current_pose_, occupancy_map_);
                     if (path_2d.size() > 1) {  
                         ROS_INFO("get local current_path to the point %d currently ", i);
                         current_waypoint_id = i;
-
+                        //发布一个 PoseStamped (way_pose) 表示选中 waypoint；
                         geometry_msgs::PoseStamped way_pose;
                         way_pose.header.frame_id = global_frame_;
                         way_pose.header.stamp = ros::Time::now();
@@ -476,8 +487,8 @@ namespace path_execution {
     std::vector<Point2D>
     PathExecution::makeLocalPlan(geometry_msgs::Pose &goal, geometry_msgs::Pose &start, OccupancyMap2D &map) {
 
-        auto path = getShortestPath(goal, start, map);
-        auto pruned_path = optimalToStraight(path, map); 
+        auto path = getShortestPath(goal, start, map);      //OccupancyMap2D上做A star
+        auto pruned_path = optimalToStraight(path, map);    //拉直
         return pruned_path;
     }
 

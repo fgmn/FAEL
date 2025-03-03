@@ -10,7 +10,8 @@ exploration_data::exploration_data(const ros::NodeHandle &nh,
                                                                         known_map_resolution(0), known_space_volume(0), system_inited(false),
                                                                         exploration_finish(false), seq(0)
 {
-
+    //known_cell_num、known_plane_cell_num、known_map_resolution、known_space_volume：
+    //分别存储地图中已知体素数量、已知平面体素数量、地图分辨率以及根据平面体素计算的已知面积（或体积），均初始化为0。
     init_sub = nh_.subscribe<std_msgs::Float64>("explorer_inited", 1, &exploration_data::explorationInitCallback, this);
     finish_sub = nh_.subscribe<std_msgs::Float64>("explorer_finish", 1, &exploration_data::explorationFinishCallback, this);
     odom_sub = nh_.subscribe<nav_msgs::Odometry>("odometry", 1, &exploration_data::odomCallback, this);
@@ -20,7 +21,11 @@ exploration_data::exploration_data(const ros::NodeHandle &nh,
     iteration_time_sub = nh_.subscribe<visualization_tools::IterationTime>("iteration_time", 1,
                                                                            &exploration_data::iterationTimeCallback,
                                                                            this);
-
+    //发布话题：
+    // "traved_distance_time"：发布累计行驶距离相关信息。
+    // "explored_volume_time"：发布已探索面积（或体积）。
+    // "explored_volume_traved_dist_time"：同时发布探索面积和累计行驶距离的数据。
+    // "run_time"：发布每次迭代耗时信息。
     traved_dist_pub = nh_.advertise<visualization_tools::TravedDistTime>("traved_distance_time", 1);
     explorated_volume_pub = nh_.advertise<visualization_tools::ExploredVolumeTime>("explored_volume_time", 1);
     explorated_volume_traved_dist_time_pub = nh_.advertise<visualization_tools::ExploredVolumeTravedDistTime>(
@@ -46,7 +51,10 @@ exploration_data::exploration_data(const ros::NodeHandle &nh,
     {
         ROS_WARN("No max_time specified. Looking for %s. Default is 100000000", (ns + "/max_time").c_str());
     }
-
+    // 构造三个文本文件的完整路径，用于存储：
+    // 时间、累计行驶距离和探索面积数据；
+    // 每次迭代耗时数据；
+    // 机器人轨迹（位置数据）。
     distance_volume_txt_name = txt_path + "time_distance_volume.txt";
     iteration_time_txt_name = txt_path + "iteration_time.txt";
     trajectory_txt_name = txt_path + "trajectory.txt";
@@ -107,7 +115,7 @@ void exploration_data::odomCallback(const nav_msgs::OdometryConstPtr &input)
 
     if (system_inited)
     {
-        path_length_sum += dist_delta;
+        path_length_sum += dist_delta;//累计机器人的行驶距离。
     }
 }
 
@@ -124,7 +132,7 @@ void exploration_data::mapAndFrontiersCallback(const ufomap_manager::UfomapWithF
 void exploration_data::iterationTimeCallback(const visualization_tools::IterationTimeConstPtr &msg)
 {
     if (system_inited && !exploration_finish)
-    {
+    {//系统已初始化且探索未结束：
 
         visualization_tools::IterationTime time;
         time.timeConsumed = msg->current_time - system_init_time;
@@ -159,7 +167,9 @@ void exploration_data::pubExplorationData(const ros::TimerEvent &event)
                                                      .count()) /
                              1000000;
         exploration_data.timeConsumed = time_second - system_init_time;
-
+        //如果已探索面积超过设定最大体积的 95%，则：
+        // 标记 exploration_finish 为 true，
+        // 发布 exploration_data_finish 消息，通知系统探索结束，
         if (exploration_data.exploredVolume > 0.95 * max_volume)
         {
             exploration_finish = true;

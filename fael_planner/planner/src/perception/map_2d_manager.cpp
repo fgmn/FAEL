@@ -14,7 +14,9 @@ namespace perception {
 
         terrain_map_sub_ = nh_.subscribe<traversability_analysis::TerrainMap>("terrain_map", 1,
                                                                               &Map2DManager::terrainMapCallback, this);
-
+        //直接订阅方式适用于独立处理单个话题消息；
+        // 而使用 message_filters 的同步订阅方式则用于需要同时处理多个话题且要求消息时间同步的场景。
+        // message_filters不会在rqt图中显示？
         terrain_cloud_sub_.reset(
                 new message_filters::Subscriber<sensor_msgs::PointCloud2>(nh_, "terrain_point_cloud", 1));
         local_cloud_sub_.reset(

@@ -61,6 +61,9 @@ namespace traversability_analysis {
             init_pose_ = current_pose_;
             no_data_init_ = 1;
         }
+        //no_data_init_：
+        // =1 时：说明机器人还没离开初始位置足够远，某些「无数据」格子应该判定为 Free（因为可能是附近空无一物），或其它逻辑。
+        // =2 时：表示机器人已经走得够远，说明「无数据」格子更有可能是「未知 / 不可见」，所以逻辑会有所不同。
         if (no_data_init_ == 1) {
             double dis = sqrt(std::pow((current_pose_.position.x - init_pose_.position.x), 2) +
                               std::pow((current_pose_.position.y - init_pose_.position.y), 2));
@@ -79,9 +82,13 @@ namespace traversability_analysis {
         for(const auto & point:local_static_point_cloud_){
             double dis = sqrt(std::pow((point.x - current_pose_.position.x), 2) +
                               std::pow((point.y - current_pose_.position.y), 2));
+            //"upper_bound_z" 是lidar的z值（相对于map系），这里为 0
+            // “lower_bound_z” 是用于剔除一些点云的参数，绝对值通常比vehicle_height 的值大0.03即可（需相对于map系，是负值）。
+            //lower_bound_z_ 是一个下边界常量，但会用 dis_ratio_z_ * dis 来“动态放宽”这个下界：距离越远 (dis 越大)，下界就越低。
             if (point.z - current_pose_.position.z > lower_bound_z_ - dis_ratio_z_ * dis &&
                 point.z - current_pose_.position.z < upper_bound_z_ + dis_ratio_z_ * dis &&
                 point.z - current_pose_.position.z > -2 && point.z-current_pose_.position.z < 1 && 
+                //在相对 z 方向上最多低到 -2（比机器人位置低2米），高到 +1（比机器人高1米）之间。
                 isInGridMapRange2d(point)) { 
                 voxelized_local_cloud_.push_back(point);
             }
@@ -139,15 +146,17 @@ namespace traversability_analysis {
     void TerrainMapEmpty::stackPointCloudAndElevations() {
         for (int i = 0; i < grid_width_num_; ++i) {
             for (int j = 0; j < grid_width_num_; ++j) {
-                grids_cloud_[i][j].clear();
-                grids_bottom_point_[i][j] = pcl::PointXYZ();
-                grids_min_elevation_[i][j] = 10000.0;
-                terrain_grids_[i][j].clear();
+                grids_cloud_[i][j].clear();                     //存放这个网格中所有的点云数据。
+                grids_bottom_point_[i][j] = pcl::PointXYZ();    //记录该网格里“最低点”（也可以理解为最小 z 值的那个点）。
+                grids_min_elevation_[i][j] = 10000.0;           //记录该网格的最小海拔（z 最小值）。
+                terrain_grids_[i][j].clear();                   //用于存储该网格更多的地形信息或状态。
             }
         }
 
         Eigen::Vector2i index;
+        //遍历滤波后的局部点云 voxelized_local_cloud_ 中的每个点
         for (auto &point: voxelized_local_cloud_.points) {
+            //通过 getIndexInGridMap(point) 将该点根据其 x,y 坐标转换成二维网格索引 index
             index = getIndexInGridMap(point);
             grids_cloud_[index.x()][index.y()].push_back(point);
             if (point.z < grids_min_elevation_[index.x()][index.y()]) {
@@ -163,6 +172,7 @@ namespace traversability_analysis {
                 for (int j = 0; j < grid_width_num_; ++j) {
                     double grid_center_x = grid_size_ * i + min_x_ + grid_size_ / 2;
                     double grid_center_y = grid_size_ * j + min_y_ + grid_size_ / 2;
+                    //dis = 网格中心点到初始位姿 (init_pose_) 的平面距离。
                     double dis = sqrt(std::pow((grid_center_x - init_pose_.position.x), 2) +
                                       std::pow((grid_center_y - init_pose_.position.y), 2));
                     if (dis < 2 * vehicle_height_ / (tan(15 * M_PI / 180))) {
@@ -172,6 +182,7 @@ namespace traversability_analysis {
                             bool occupied = false;
                             for (auto point: grids_cloud_[i][j].points) {
                                 float dis_z = fabs(point.z - grids_min_elevation_[i][j]);
+                                //"low_z" 是一个调节地形误分析的参数，由于我们当时用的slam存在较大误差，表示地面的激光点可很厚，这个参数为该厚度的上限。
                                 if (dis_z > lower_z_) { 
                                     occupied = true;
                                     break;
@@ -183,6 +194,7 @@ namespace traversability_analysis {
                                 terrain_grids_[i][j].status = Status::Free;
                             }
                         }
+                    //当网格中心不在初始附近的范围 dis >= 2 * vehicle_height_ / tan(15°)：
                     } else if (grids_cloud_[i][j].size() < min_grid_point_num_) {
                         terrain_grids_[i][j].status = Status::Occupied;
                     } else {
@@ -194,6 +206,8 @@ namespace traversability_analysis {
                                 break;
                             }
                         }
+                        //如果检测到有点与底部点 z 差大于 lower_z_，则标记Empty
+                        //（可能代表远处发现了有一定高度差，但不确定是否可通行），否则标记Free。
                         if (occupied) { 
                             terrain_grids_[i][j].status = Status::Empty;
                         } else {

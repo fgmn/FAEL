@@ -8,7 +8,8 @@
         <remap from="/ufomap_and_frontiers" to="/topo_planner_node/ufomap_and_frontiers"/>
         <remap from="/iteration_time" to="/topo_planner_node/iteration_time"/>
 
-        <param name="map_area" value="4582"/>
+        <param name="map_area" value="99999"/>
+        <!-- <param name="map_area" value="4582"/> -->
         <!-- <param name="map_area" value="4146"/> -->
         <!-- <param name="map_area" value="9601"/> -->
         <!-- <param name="map_area" value="12129"/> -->

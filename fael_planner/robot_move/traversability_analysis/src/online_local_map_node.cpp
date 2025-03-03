@@ -30,7 +30,8 @@ public:
     ros::NodeHandle nh_private_;
 
     ros::Publisher local_map_pub_;
-
+    //sync_local_cloud_odom_ 使用 ApproximateTime 策略进行同步，队列大小 100。
+    //当有近似同一时间戳的点云与里程计到达时，会触发回调函数 pointCloudOdomCallback。
     typedef message_filters::sync_policies::ApproximateTime <sensor_msgs::PointCloud2, nav_msgs::Odometry> SyncPolicyLocalCloudOdom;
     std::shared_ptr <message_filters::Subscriber<sensor_msgs::PointCloud2>> local_cloud_sub_;
     std::shared_ptr <message_filters::Subscriber<nav_msgs::Odometry>> local_odom_sub_;
@@ -81,12 +82,16 @@ void OnlineLocalMapUpdater::pointCloudOdomCallback(const sensor_msgs::PointCloud
     std::vector<int> scan_index;
     pcl::removeNaNFromPointCloud(scan, scan_cloud, scan_index);
     pcl::PointCloud<pcl::PointXYZI> transform_cloud;
+    //注意：后续代码里并没有使用 transform_cloud，仅仅做了一个演示性变换。
+    //实际上想要在 "map" 坐标系下处理点云，应当将 transform_cloud 后续用于拼接，而不是原始 scan_cloud。
     pcl_ros::transformPointCloud(frame_id_, scan_cloud, transform_cloud, tf_listener_); 
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr ptr_local_map = boost::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
     *ptr_local_map = local_map_;
+    //将现有 local_map_（先前的局部地图）复制到 ptr_local_map，再把当前帧激光点云 scan_cloud 叠加进去。这样得到一个新的“累积”点云。
     *ptr_local_map += scan_cloud; 
-
+    
+    //用体素滤波器（voxel_filter_）对融合后的点云进行降采样，结果存入 voxelized_local_map。
     pcl::PointCloud<pcl::PointXYZI>::Ptr voxelized_local_map = boost::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
     voxel_filter_.setInputCloud(ptr_local_map);
     voxel_filter_.filter(*voxelized_local_map); 
@@ -95,6 +100,7 @@ void OnlineLocalMapUpdater::pointCloudOdomCallback(const sensor_msgs::PointCloud
     kd_tree.setInputCloud(voxelized_local_map);
      
     local_map_.clear();
+    //以机器人当前位置为中心，保留某个方形/正方形范围内(2D plane)的点云。
     for (auto const &point:voxelized_local_map->points) {
         if (fabs(point.x - current_pose.position.x) < local_map_range_ / 2 &&
             fabs(point.y - current_pose.position.y) < local_map_range_ / 2 )
