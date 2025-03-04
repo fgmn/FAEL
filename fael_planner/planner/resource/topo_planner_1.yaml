@@ -52,7 +52,7 @@ ViewpointManager:
 
 Roadmap:
   frame_id: world
-  sample_dist: 1.0
+  sample_dist: 0.4
   connectable_range: 3
   connectable_num: 3
 

@@ -310,19 +310,24 @@ namespace path_execution {
             ROS_WARN("the received path_segments is emtpy..");
             return false;
         }
-
+        //typedef std::vector<geometry_msgs::Pose> Path;
+        //std::vector<Path> path_segments_;
         path_segments_.clear();
+        //Path global_path_to_follow_;
         global_path_to_follow_.clear();
         Path path;
         for (int i = 0; i < path_segments.size(); i++) {
-            ROS_INFO("this path segment size is %zu ", path_segments[i].path.size());
+            // ROS_INFO("this path segment size is %zu ", path_segments[i].path.size());
             path.insert(path.end(), path_segments[i].path.begin(), path_segments[i].path.end());
             Path interpolate_segment = interpolatePath(path_segments[i].path);
             path_segments_.push_back(interpolate_segment);
             global_path_to_follow_.insert(global_path_to_follow_.end(), interpolate_segment.begin(),
                                           interpolate_segment.end());
         }
-
+        // [ INFO] [1741063882.645628092, 338.644000000]: this path segment size is 12 
+        // [ INFO] [1741063882.645651755, 338.644000000]: interpolate the path..
+        // [ INFO] [1741063882.645693184, 338.644000000]:  the followed global path size is 313
+        // [ INFO] [1741063882.645719125, 338.644000000]: global path to be executed size: 3604
         ROS_INFO(" the followed global path size is %zu", path.size());
         ROS_INFO("global path to be executed size: %lu", global_path_to_follow_.size());
         publishPath(global_path_to_follow_, executed_path_pub_);
@@ -332,7 +337,7 @@ namespace path_execution {
 
     Path PathExecution::interpolatePath(const Path &path) const {
         //对输入的路径进行插值，即在每两个相邻的路径点之间，根据一定的步长在直线上插入更多的中间点，使结果路径更平滑密集。
-        ROS_INFO("interpolate the path..");
+        // ROS_INFO("interpolate the path..");
         Path interpolated_path;
 
         if (path.size() >= 2) {
@@ -386,6 +391,8 @@ namespace path_execution {
     }
 
     bool PathExecution::lookAheadPointControlLoop() {
+        //在预先规划好的全局路径上寻找“前瞻点”（look-ahead point），
+        //并在控制循环中不断发布局部路径和前瞻点指令，使机器人沿着全局路径前进。
         loop_num_++;
         ROS_INFO("start control loop %d...", loop_num_);
         ROS_INFO("the will be executed point num of the interpolated path is %zu", global_path_to_follow_.size());
@@ -395,7 +402,7 @@ namespace path_execution {
 
         if (control_freq_ == 0.0)
             return false;
-        // 设置控制频率
+        // 根据控制频率创建一个 ros::Rate 对象，用于控制 while 循环的执行周期。
         ros::Rate r(control_freq_);
   
         int ind = 0;
@@ -434,16 +441,19 @@ namespace path_execution {
                         look_ahead_point.header.frame_id = global_frame_;
                         look_ahead_point.header.stamp = ros::Time::now();
                         Point2D look_ahead_goal;
+                        //从后往前寻找第一个与当前点之间的直线路径无碰撞的点。
                         for (int j = static_cast<int>(path_2d.size() - 1); j >= 0; --j) {
                             if (occupancy_map_.isCollisionFreeStraight(current_position, path_2d[j])) { 
                                 double distance = sqrt(pow(path_2d[j].x() - current_position.x(), 2) +
                                                        pow(path_2d[j].y() - current_position.y(), 2));
-
+                                //如果该局部路径点不是局部路径终点，并且距离小于 1.0 米，则：
+                                //  将前瞻点设置为该点沿着该方向延伸 1.0 米的位置。
+                                //  如果距离小于一个栅格大小，则使用下一个点作为前瞻点。
                                 if (j != (path_2d.size() - 1) && distance < 1.0) {
                                      
                                     look_ahead_goal = path_2d[j] + (path_2d[j] - current_position).normalized() * 1.0;
 
-                                    if(distance < occupancy_map_.grid_size_){
+                                    if(distance < occupancy_map_.grid_size_){//grid_size_=0.15
                                         look_ahead_goal = path_2d[j+1];
                                     }
                                 } else {
@@ -464,7 +474,7 @@ namespace path_execution {
 
             ros::spinOnce();
             r.sleep();
-
+            //选中的 waypoint 正好是当前路径段的最后一个点：
             if (current_waypoint_id == current_path.size() - 1) {
                 double dist = sqrt(
                         std::pow(current_path[current_waypoint_id].position.x - current_pose_.position.x, 2) +
@@ -623,6 +633,8 @@ namespace path_execution {
 
 
     Path PathExecution::generatePath(std::vector<Point2D> &path_2d, geometry_msgs::Pose &end_pose) {
+        //将二维路径点（Point2D）转换为三维路径（Path，通常是 std::vector<geometry_msgs::Pose>），
+        //并在末尾追加一个给定的终点姿态（end_pose）。
         std::vector<geometry_msgs::Pose> path;
 
         if (!path_2d.empty()) {

@@ -62,7 +62,7 @@ namespace explorer {
         iteration_goal_is_scaned_ = false;
         need_to_next_iteration_ = true;
 
-        while (ros::ok()) {
+        while (ros::ok()) {//自主探索核心循环
             if (exploration_finished_) {
                 double finish_explore_time = static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(
                         std::chrono::high_resolution_clock::now().time_since_epoch()).count()) / 1000000;

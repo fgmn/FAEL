@@ -146,7 +146,7 @@ namespace preprocess {
 
         Point3DQueue suitable_points;
         Point3DQueue selected_points = local_points;//store points that need to be searched edges' connection relationship
-        double min_intervel = 1.0;
+        double min_intervel = sample_dist_; //default =1.0
         //对于每个采样点 point，若与 selected_points 中所有点距离都 >= min_intervel=1.0，才将其视为“合适的点”
         for (const auto &point: sample_points) {
             bool suitable = true;
