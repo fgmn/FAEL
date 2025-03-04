@@ -53,7 +53,7 @@ ViewpointManager:
 Roadmap:
   frame_id: world
   sample_dist: 0.4
-  connectable_range: 3
+  connectable_range: 5
   connectable_num: 3
 
 RapidCoverPlanner:

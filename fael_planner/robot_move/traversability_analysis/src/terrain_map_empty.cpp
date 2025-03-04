@@ -196,7 +196,8 @@ namespace traversability_analysis {
                         }
                     //当网格中心不在初始附近的范围 dis >= 2 * vehicle_height_ / tan(15°)：
                     } else if (grids_cloud_[i][j].size() < min_grid_point_num_) {
-                        terrain_grids_[i][j].status = Status::Occupied;
+                        // terrain_grids_[i][j].status = Status::Occupied;
+                        terrain_grids_[i][j].status = Status::Empty;
                     } else {
                         bool occupied = false;
                         for (auto point: grids_cloud_[i][j].points) {
@@ -209,7 +210,8 @@ namespace traversability_analysis {
                         //如果检测到有点与底部点 z 差大于 lower_z_，则标记Empty
                         //（可能代表远处发现了有一定高度差，但不确定是否可通行），否则标记Free。
                         if (occupied) { 
-                            terrain_grids_[i][j].status = Status::Empty;
+                            // terrain_grids_[i][j].status = Status::Empty;
+                            terrain_grids_[i][j].status = Status::Occupied;
                         } else {
                             terrain_grids_[i][j].status = Status::Free;
                         }
