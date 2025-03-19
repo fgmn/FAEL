@@ -55,7 +55,7 @@
       <!-- 如果只是静态场景，设true -->
       <static>true</static> 
       <!-- 在世界坐标中摆放位置, 如放在 x=10, y=5, z=0 上面 -->
-      <pose>-40 -40 0 0 0 0</pose>
+      <pose>0 0 0 0 0 0</pose>
       <link name="link">
         <!-- 可视外观 -->
         <visual name="partition_visual">

@@ -93,6 +93,7 @@ public:
     std::string distance_volume_txt_name;
     std::string iteration_time_txt_name;
     std::string trajectory_txt_name;
+    std::string comp_data_txt_name;
 
     double sum_iteration_time;
     int iteration_num;

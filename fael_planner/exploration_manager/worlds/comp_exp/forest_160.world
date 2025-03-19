@@ -51,27 +51,27 @@
     </model>
 
     <!-- 4) 通过 SDF <model> 引用 .dae 文件做外观和碰撞 -->
-    <model name="partition">
+    <model name="dae">
       <!-- 如果只是静态场景，设true -->
       <static>true</static> 
       <!-- 在世界坐标中摆放位置, 如放在 x=10, y=5, z=0 上面 -->
       <pose>0 0 0 0 0 0</pose>
       <link name="link">
         <!-- 可视外观 -->
-        <visual name="partition_visual">
+        <visual name="dae">
           <geometry>
             <mesh>
                   <!-- 假设dae文件在 /home/username/models/my_mesh.dae -->
-              <uri>file:///home/zhengkr/fael_ws/src/FAEL/fael_planner/exploration_manager/worlds/mesh_partition_forest.dae</uri>
+              <uri>file:///home/zhengkr/eval_map/forest_160/forest_160.dae</uri>
             </mesh>
           </geometry>
         </visual>
 
         <!-- 碰撞形状, 可以与visual相同(高精度)或用简化网格(推荐) -->
-        <collision name="partition_collision">
+        <collision name="dae">
           <geometry>
             <mesh>
-              <uri>file:///home/zhengkr/fael_ws/src/FAEL/fael_planner/exploration_manager/worlds/mesh_partition_forest.dae</uri>
+              <uri>file:///home/zhengkr/eval_map/forest_160/forest_160.dae</uri>
             </mesh>
           </geometry>
         </collision>

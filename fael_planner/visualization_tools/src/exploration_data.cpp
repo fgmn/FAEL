@@ -58,6 +58,7 @@ exploration_data::exploration_data(const ros::NodeHandle &nh,
     distance_volume_txt_name = txt_path + "time_distance_volume.txt";
     iteration_time_txt_name = txt_path + "iteration_time.txt";
     trajectory_txt_name = txt_path + "trajectory.txt";
+    comp_data_txt_name = txt_path + "comp_data.txt";
 
     std::ofstream fout;
     fout.open(distance_volume_txt_name, std::ios_base::in | std::ios_base::out | std::ios_base::trunc);
@@ -86,6 +87,16 @@ exploration_data::exploration_data(const ros::NodeHandle &nh,
          << "z \t"
          << std::endl;
     fout.close();
+
+    fout.open(comp_data_txt_name, std::ios_base::in | std::ios_base::out | std::ios_base::trunc);
+    fout << "explored time \t"
+         << "x \t"
+         << "y \t"
+         << "z \t"
+         << "explored volume(m2) \t"
+         << "iteration time \t"
+         << "distance/path-length \t"
+         << std::endl;
 }
 
 void exploration_data::explorationInitCallback(const std_msgs::Float64ConstPtr &init)
@@ -167,6 +178,7 @@ void exploration_data::pubExplorationData(const ros::TimerEvent &event)
                                                      .count()) /
                              1000000;
         exploration_data.timeConsumed = time_second - system_init_time;
+        exploration_data.iterationTime = sum_iteration_time / iteration_num;
         //如果已探索面积超过设定最大体积的 95%，则：
         // 标记 exploration_finish 为 true，
         // 发布 exploration_data_finish 消息，通知系统探索结束，
@@ -201,6 +213,11 @@ void exploration_data::pubExplorationData(const ros::TimerEvent &event)
         fout << exploration_data.timeConsumed << "\t" << last_position.x() << "\t" << last_position.y() << "\t"
              << last_position.z() << std::endl;
         fout.close();
+
+        fout.open(comp_data_txt_name, std::ios_base::in | std::ios_base::out | std::ios_base::app);
+        fout << exploration_data.timeConsumed << "\t" << last_position.x() << "\t" << last_position.y() << "\t"
+             << last_position.z() << "\t" << exploration_data.exploredVolume << "\t" << exploration_data.iterationTime
+             << "\t" << exploration_data.travedDist << std::endl;
     }
 }
 

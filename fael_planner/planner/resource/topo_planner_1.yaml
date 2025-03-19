@@ -14,7 +14,7 @@ UFOMap:
   # ufomap map configuration
   resolution: 0.4
   depth_levels: 16
-  max_range: 12.0 
+  max_range: 15.0 
 
   frame_id: world  #
   navigation_frame_id: world 
@@ -36,9 +36,9 @@ UFOMap:
 
 GridMap2D:
   frame_id: world
-  grid_size: 0.15
-  inflate_radius: 0.3
-  inflate_empty_radius: 0.3
+  grid_size: 0.4
+  inflate_radius: 0.4
+  inflate_empty_radius: 0.4
   lower_z: 0.2
   connectivity_thre: 0.1
 

@@ -1,8 +1,12 @@
 <?xml version="1.0" ?>
 <launch>
 
+    <arg name="use_planner_rviz" default="true"/>
+    <arg name="max_area" default="99999"/>
+    <arg name="max_time" default="2000000000.0"/>
     <include file="$(find planner)/launch/planner.launch">
         <param name="topo_planner_params" value="topo_planner_1.yaml"/>
+        <arg name="use_planner_rviz" value="$(arg use_planner_rviz)"/>
     </include>
 
     <node pkg="exploration_manager" type="explorer_node" name="explorer_node" output="screen">
@@ -22,6 +26,9 @@
     </node>
 
     <!-- statistics and data visualization -->
-    <include file="$(find visualization_tools)/launch/visualization_tools.launch"/>
+    <include file="$(find visualization_tools)/launch/visualization_tools.launch">
+        <arg name="max_area" value="$(arg max_area)"/>
+        <arg name="max_time" value="$(arg max_time)"/>
+    </include>
 
 </launch>

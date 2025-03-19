@@ -2,6 +2,7 @@
 <launch>
     
     <arg name="topo_planner_params" default="topo_planner_1.yaml"/>
+    <arg name="use_planner_rviz" default="true"/>
 
     <!-- <node pkg="planner" type="topo_planner_node" name="topo_planner_node" output="screen"> -->
     <node pkg="planner" type="topo_planner_node" name="topo_planner_node" output="log">
@@ -21,6 +22,6 @@
 
     </node>
     
-    <node name="planner_rviz" pkg="rviz" type="rviz" args="-d $(find planner)/resource/topo_planner.rviz"/>
+    <node if="$(arg use_planner_rviz)" name="planner_rviz" pkg="rviz" type="rviz" args="-d $(find planner)/resource/topo_planner.rviz"/>
 
 </launch>
