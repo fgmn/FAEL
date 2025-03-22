@@ -3,7 +3,7 @@
 
 # 定义worlds列表
 # worlds=("forest_80" "dungeon_80" "partition_80" "forest_160" "dungeon_160" "partition_160")
-worlds=("dungeon_80" "partition_80")
+worlds=("dungeon_160" "partition_160" "forest_160")
 declare -A max_time_dict=(
     ["forest_80"]=1000
     ["dungeon_80"]=1000
@@ -13,6 +13,7 @@ declare -A max_time_dict=(
     ["partition_160"]=6000
 )
 for world in "${worlds[@]}"; do
+    echo "Starting simulation for world: $world"
     # 1) 定义参数
     world_name="/home/zhengkr/fael_ws/src/FAEL/fael_planner/exploration_manager/worlds/comp_exp/${world}.world"
     dataset_path="/home/zhengkr/eval_map/${world}"

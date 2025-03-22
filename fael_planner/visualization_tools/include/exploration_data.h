@@ -7,6 +7,7 @@
 #include <math.h>
 #include <time.h>
 #include <stdio.h>
+#include <iomanip>
 #include <stdlib.h>
 #include <ros/ros.h>
 
@@ -57,6 +58,7 @@ public:
     ros::NodeHandle nh_private_;
 
     ros::Subscriber odom_sub;
+    ros::Subscriber point_cloud_sub;
     ros::Subscriber map_frontiers_sub;
     ros::Subscriber iteration_time_sub;
     ros::Subscriber init_sub;
@@ -67,6 +69,17 @@ public:
     ros::Publisher explorated_volume_pub;
     ros::Publisher iteration_time_pub;
     ros::Publisher explore_finish_pub;
+
+    // pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloud;
+    // pcl::PointCloud<pcl::PointXYZI>::Ptr exploredVolumeCloud;
+    // pcl::PointCloud<pcl::PointXYZI>::Ptr exploredVolumeCloud2;
+    // pcl::PointCloud<pcl::PointXYZI>::Ptr exploredPlaneCloud;
+
+    // pcl::VoxelGrid<pcl::PointXYZI>::Ptr exploredVolumeDwzFilter;
+
+    // double exploredVolumeVoxelSize;
+    // double exploredVolume;
+    // double exploredArea;
 
     ros::Timer pub_timer;
 
@@ -108,6 +121,8 @@ public:
     void explorationFinishCallback(const std_msgs::Float64ConstPtr &finish);
 
     void odomCallback(const nav_msgs::OdometryConstPtr &input);
+
+    void pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud);
 
     void pubExplorationData(const ros::TimerEvent &event);
 

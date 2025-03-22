@@ -4,12 +4,12 @@
 # PASSWORD="zhengkairao"  # 用于 sudo 的密码
 
 # 1) 定义参数
-world_name="/home/zhengkr/fael_ws/src/FAEL/fael_planner/exploration_manager/worlds/forest.world"
-x=40
-y=40
+world_name="/home/zhengkr/fael_ws/src/FAEL/fael_planner/exploration_manager/worlds/comp_exp/forest_80.world"
+x=11.100000 
+y=58.000000
 z=1.5
-max_time=800
-WAIT_TIME=900  # 等待时长（秒），这里示例为15分钟
+max_time=6666
+WAIT_TIME=6666  # 等待时长（秒），这里示例为15分钟
 
 # 记录启动脚本前的所有 gnome-terminal 进程ID
 PIDS_BEFORE=$(ps aux | grep "[g]nome-terminal" | awk '{print $2}')
@@ -18,7 +18,7 @@ PIDS_BEFORE=$(ps aux | grep "[g]nome-terminal" | awk '{print $2}')
 gnome-terminal --disable-factory -- bash -l -c "
   source devel/setup.bash &&
   roslaunch exploration_manager sim_env.launch \
-    world_name:=$world_name x:=$x y:=$y z:=$z max_time:=$max_time;
+    world_name:=$world_name x:=$x y:=$y max_time:=$max_time use_gui:=true;
   exec bash" &
 sleep 5
 

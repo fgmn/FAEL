@@ -2,12 +2,18 @@
 <launch>
     <arg name="max_area" default="99999"/>
     <arg name="max_time" default="2000000000.0"/>
-    <node pkg="visualization_tools" type="exploration_data" name="exploration_data" output="log">
+    <node pkg="visualization_tools" type="exploration_data" name="exploration_data" output="screen" respawn="true">
         <remap from="/explorer_inited" to="/explorer_node/explorer_inited"/>
         <remap from="/explorer_finish" to="/explorer_node/explorer_finish"/>
-        <remap from="/odometry" to="/base_link/odometry"/>
+        <!-- <remap from="/odometry" to="/base_link/odometry"/> -->
+        <!-- 记录原始的odometry数据 -->
+        <remap from="/odometry" to="/jackal/velodyne/gazebo_gt/odometry"/>
+        <!-- <remap from="/point_cloud" to="/jackal/velodyne/velodyne_points"/> -->
+
         <remap from="/ufomap_and_frontiers" to="/topo_planner_node/ufomap_and_frontiers"/>
         <remap from="/iteration_time" to="/topo_planner_node/iteration_time"/>
+
+        <!-- <param name="exploredVolumeVoxelSize" type="double" value="0.4" /> -->
 
         <param name="map_area" value="$(arg max_area)"/>
         <!-- forest.world -->

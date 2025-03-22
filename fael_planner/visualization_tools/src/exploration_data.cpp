@@ -15,6 +15,7 @@ exploration_data::exploration_data(const ros::NodeHandle &nh,
     init_sub = nh_.subscribe<std_msgs::Float64>("explorer_inited", 1, &exploration_data::explorationInitCallback, this);
     finish_sub = nh_.subscribe<std_msgs::Float64>("explorer_finish", 1, &exploration_data::explorationFinishCallback, this);
     odom_sub = nh_.subscribe<nav_msgs::Odometry>("odometry", 1, &exploration_data::odomCallback, this);
+    // point_cloud_sub = nh_.subscribe<sensor_msgs::PointCloud2>("point_cloud", 1, &exploration_data::pointCloudCallback, this);
     map_frontiers_sub = nh_.subscribe<ufomap_manager::UfomapWithFrontiers>("ufomap_and_frontiers", 1,
                                                                            &exploration_data::mapAndFrontiersCallback,
                                                                            this);
@@ -32,13 +33,19 @@ exploration_data::exploration_data(const ros::NodeHandle &nh,
         "explored_volume_traved_dist_time", 1);
 
     iteration_time_pub = nh_.advertise<visualization_tools::IterationTime>("run_time", 1);
-    pub_timer = nh_private_.createTimer(ros::Duration(1.0), &exploration_data::pubExplorationData, this);
+    pub_timer = nh_private_.createTimer(ros::Duration(0.2), &exploration_data::pubExplorationData, this);
 
     explore_finish_pub = nh_.advertise<std_msgs::Bool>("exploration_data_finish", 1);
 
     const std::string &ns = ros::this_node::getName();
     std::string pkg_path = ros::package::getPath("visualization_tools");
     std::string txt_path = pkg_path + "/../../files/exploration_data/";
+
+    // exploredVolumeVoxelSize = 0.4;
+    // if (!ros::param::get(ns + "/exploredVolumeVoxelSize", exploredVolumeVoxelSize))
+    // {
+    //     ROS_WARN("No exploredVolumeVoxelSize specified. Looking for %s. Default is 0.4", (ns + "/exploredVolumeVoxelSize").c_str());
+    // }
 
     max_volume = 100000000.0;
     if (!ros::param::get(ns + "/map_area", max_volume))
@@ -51,6 +58,16 @@ exploration_data::exploration_data(const ros::NodeHandle &nh,
     {
         ROS_WARN("No max_time specified. Looking for %s. Default is 100000000", (ns + "/max_time").c_str());
     }
+
+    // // 点云初始化
+    // laserCloud.reset(new pcl::PointCloud<pcl::PointXYZI>());
+    // exploredVolumeCloud.reset(new pcl::PointCloud<pcl::PointXYZI>());
+    // exploredVolumeCloud2.reset(new pcl::PointCloud<pcl::PointXYZI>());
+    // exploredPlaneCloud.reset(new pcl::PointCloud<pcl::PointXYZI>());
+    // // 点云下采样
+    // exploredVolumeDwzFilter.reset(new pcl::VoxelGrid<pcl::PointXYZI>());
+    // exploredVolumeDwzFilter->setLeafSize(exploredVolumeVoxelSize, exploredVolumeVoxelSize, exploredVolumeVoxelSize);
+
     // 构造三个文本文件的完整路径，用于存储：
     // 时间、累计行驶距离和探索面积数据；
     // 每次迭代耗时数据；
@@ -130,6 +147,38 @@ void exploration_data::odomCallback(const nav_msgs::OdometryConstPtr &input)
     }
 }
 
+// void exploration_data::pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud)
+// {//frame_id: "jackal/velodyne/VLP_16"
+//     if (!system_inited)
+//     {
+//         return;
+//     }
+//     laserCloud->clear();
+//     pcl::fromROSMsg(*cloud, *laserCloud);
+
+//     *exploredVolumeCloud += *laserCloud;
+//     //对点云进行下采样：
+//     exploredVolumeCloud2->clear();
+//     exploredVolumeDwzFilter->setInputCloud(exploredVolumeCloud);
+//     exploredVolumeDwzFilter->filter(*exploredVolumeCloud2);
+
+//     pcl::PointCloud<pcl::PointXYZI>::Ptr tempCloud = exploredVolumeCloud;
+//     exploredVolumeCloud = exploredVolumeCloud2;
+//     exploredVolumeCloud2 = tempCloud;
+//     //计算已探索体积和面积：
+//     exploredVolume = exploredVolumeVoxelSize * exploredVolumeVoxelSize * exploredVolumeVoxelSize * exploredVolumeCloud->points.size();
+
+//     exploredPlaneCloud->clear();
+//     double offset = 0.6;
+//     for (const auto& point : exploredVolumeCloud->points) {
+//         double adjust_z = point.z + offset;
+//         if (adjust_z <= exploredVolumeVoxelSize) {
+//             exploredPlaneCloud->push_back(point);
+//         }
+//     }
+//     exploredArea = exploredVolumeVoxelSize * exploredVolumeVoxelSize * exploredPlaneCloud->points.size();
+// }
+
 void exploration_data::mapAndFrontiersCallback(const ufomap_manager::UfomapWithFrontiersConstPtr &msg)
 {
 
@@ -172,6 +221,7 @@ void exploration_data::pubExplorationData(const ros::TimerEvent &event)
         exploration_data.header.seq = ++seq;
 
         exploration_data.exploredVolume = known_space_volume;
+        // exploration_data.exploredVolume = exploredArea;
         exploration_data.travedDist = path_length_sum;
         double time_second = static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(
                                                      std::chrono::high_resolution_clock::now().time_since_epoch())
@@ -214,10 +264,21 @@ void exploration_data::pubExplorationData(const ros::TimerEvent &event)
              << last_position.z() << std::endl;
         fout.close();
 
+        // fout.open(comp_data_txt_name, std::ios_base::in | std::ios_base::out | std::ios_base::app);
+        // fout << exploration_data.timeConsumed << "\t" << last_position.x() << "\t" << last_position.y() << "\t"
+        //      << last_position.z() << "\t" << exploration_data.exploredVolume << "\t" << exploration_data.iterationTime
+        //      << "\t" << exploration_data.travedDist << std::endl;
+
         fout.open(comp_data_txt_name, std::ios_base::in | std::ios_base::out | std::ios_base::app);
-        fout << exploration_data.timeConsumed << "\t" << last_position.x() << "\t" << last_position.y() << "\t"
-             << last_position.z() << "\t" << exploration_data.exploredVolume << "\t" << exploration_data.iterationTime
-             << "\t" << exploration_data.travedDist << std::endl;
+        fout << std::fixed << std::setprecision(6)
+        << exploration_data.timeConsumed << "\t"
+        << last_position.x() << "\t" 
+        << last_position.y() << "\t"
+        << last_position.z() << "\t"
+        << exploration_data.exploredVolume << "\t"
+        << exploration_data.iterationTime << "\t"
+        << exploration_data.travedDist << std::endl;
+        fout.close();
     }
 }
 

@@ -91,9 +91,11 @@ for ((i=0; i<${#x_coords[@]}; i++)); do
     [ -n "$pid_to_kill" ] && kill -TERM $pid_to_kill 2>/dev/null && sleep 3
     [ -n "$pid_to_kill" ] && kill -KILL $pid_to_kill 2>/dev/null
 
-    sleep 33
+    sleep 66
 
+    # 拷贝日志数据
     cp /home/zhengkr/fael_ws/src/FAEL/files/exploration_data/comp_data.txt "$log_path/log_${x}_${y}.txt"
+    sleep 3
     
 done
 
