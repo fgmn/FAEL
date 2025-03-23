@@ -141,7 +141,7 @@ void exploration_data::odomCallback(const nav_msgs::OdometryConstPtr &input)
     double dist_delta = current_position.distance(last_position);
     last_position = current_position;
 
-    if (system_inited)
+    if (system_inited and last_position.z() != 0)   // 初始化完成
     {
         path_length_sum += dist_delta;//累计机器人的行驶距离。
     }

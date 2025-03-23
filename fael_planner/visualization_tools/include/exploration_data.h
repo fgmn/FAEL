@@ -58,7 +58,7 @@ public:
     ros::NodeHandle nh_private_;
 
     ros::Subscriber odom_sub;
-    ros::Subscriber point_cloud_sub;
+    // ros::Subscriber point_cloud_sub;
     ros::Subscriber map_frontiers_sub;
     ros::Subscriber iteration_time_sub;
     ros::Subscriber init_sub;
@@ -122,7 +122,7 @@ public:
 
     void odomCallback(const nav_msgs::OdometryConstPtr &input);
 
-    void pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud);
+    // void pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud);
 
     void pubExplorationData(const ros::TimerEvent &event);
 

@@ -251,8 +251,8 @@
   </joint>
 
   <xacro:include filename="$(find jackal_description)/urdf/VLP_16.urdf.xacro"/>
-    <!-- <xacro:VLP_16 name="VLP_16" namespace="${namespace}/velodyne" parent="mid_mount" topic="velodyne_points" hz="5" samples="350" min_range="0.1" gpu="true"> -->
-    <xacro:VLP_16 name="VLP_16" namespace="${namespace}/velodyne" parent="mid_mount" topic="velodyne_points" hz="10" samples="1800" gpu="true">
+    <xacro:VLP_16 name="VLP_16" namespace="${namespace}/velodyne" parent="mid_mount" topic="velodyne_points" hz="10" samples="1800" min_range="0.1" max_range="40.0" gpu="true">
+    <!-- <xacro:VLP_16 name="VLP_16" namespace="${namespace}/velodyne" parent="mid_mount" topic="velodyne_points" hz="10" samples="1800" gpu="true"> -->
 <!--  <xacro:VLP_16 name="VLP_16" namespace="${namespace}/velodyne" parent="mid_mount" topic="velodyne_points" hz="10" samples="440" gpu="false">-->
     <origin xyz="0 0 0.234" rpy="0 0 0"/>
 <!--    <origin xyz="0 0 0.135" rpy="0 0 0"/>-->

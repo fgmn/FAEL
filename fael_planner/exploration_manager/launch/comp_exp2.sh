@@ -3,7 +3,7 @@
 
 # 定义worlds列表
 # worlds=("forest_80" "dungeon_80" "partition_80" "forest_160" "dungeon_160" "partition_160")
-worlds=("dungeon_160" "partition_160" "forest_160")
+worlds=("forest_80" "dungeon_80" "partition_80")
 declare -A max_time_dict=(
     ["forest_80"]=1000
     ["dungeon_80"]=1000
